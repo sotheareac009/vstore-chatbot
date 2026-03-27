@@ -116,6 +116,7 @@
         formData.append('message', text);
         formData.append('history', JSON.stringify(history.slice(-10)));
         formData.append('model', modelSelect ? modelSelect.value : 'claude-haiku-4-5-20251001');
+        formData.append('page_url', window.location.href);
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', cfg.ajax_url, true);
@@ -261,12 +262,30 @@
         for (var i = 0; i < parts.length; i++) {
             var line = parts[i].trim();
             if (line) {
+                // Escape HTML first
+                line = escHtml(line);
                 // Bold text **text**
-                line = escHtml(line).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                line = line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                // Detect and linkify URLs (http, https, www)
+                line = linkifyUrls(line);
                 html += '<p>' + line + '</p>';
             }
         }
         return html || '<p>' + escHtml(text) + '</p>';
+    }
+
+    function linkifyUrls(text) {
+        // Match URLs: https://domain.com, http://domain.com, www.domain.com
+        var urlRegex = /(https?:\/\/[^\s<>]+|www\.[^\s<>]+)/gi;
+        return text.replace(urlRegex, function(url) {
+            // Add protocol if only www
+            var href = url;
+            if (!href.match(/^https?:\/\//i)) {
+                href = 'https://' + href;
+            }
+            // Create clickable link with target="_blank" for external links
+            return '<a href="' + escAttr(href) + '" target="_blank" rel="noopener noreferrer" class="sai-link">' + escHtml(url) + '</a>';
+        });
     }
 
     function scrollBottom() {

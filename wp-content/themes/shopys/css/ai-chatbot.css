@@ -243,6 +243,36 @@
     color: var(--sai-text);
 }
 
+/* ── Links in Messages ──────────────────────────────────────────── */
+.sai-bubble a.sai-link {
+    color: var(--sai-primary);
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 2px solid var(--sai-primary);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.sai-bubble a.sai-link:hover {
+    color: var(--sai-primary-dk);
+    border-bottom-color: var(--sai-primary-dk);
+    text-decoration: none;
+}
+
+.sai-bubble a.sai-link:active {
+    opacity: 0.8;
+}
+
+.sai-bubble-user a.sai-link {
+    color: #fff;
+    border-bottom-color: rgba(255, 255, 255, 0.7);
+}
+
+.sai-bubble-user a.sai-link:hover {
+    color: #f0f0f0;
+    border-bottom-color: #fff;
+}
+
 /* ── Typing Indicator ────────────────────────────────────────────── */
 .sai-typing {
     display: flex;

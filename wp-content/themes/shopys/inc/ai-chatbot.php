@@ -151,7 +151,426 @@ function shopys_ai_get_catalog() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   3. CLAUDE API CALLER
+   2.5 WEBSITE MAP BUILDER (all pages, posts, categories)
+   ═══════════════════════════════════════════════════════════════════ */
+
+function shopys_ai_get_website_map() {
+    $cached = get_transient( 'shopys_ai_website_map' );
+    if ( false !== $cached ) return $cached;
+
+    $map = array(
+        'pages'      => array(),
+        'posts'      => array(),
+        'categories' => array(),
+        'archives'   => array(),
+        'menus'      => array(),
+        'product_categories' => array(),
+    );
+
+    // Get all pages
+    $pages = get_pages( array( 'number' => 100 ) );
+    foreach ( $pages as $page ) {
+        $map['pages'][] = array(
+            'id'    => $page->ID,
+            'title' => $page->post_title,
+            'url'   => get_page_link( $page->ID ),
+            'slug'  => $page->post_name,
+        );
+    }
+
+    // Get all posts
+    $posts = get_posts( array(
+        'numberposts' => 100,
+        'post_type'   => 'post',
+        'orderby'     => 'date',
+        'order'       => 'DESC',
+    ) );
+    foreach ( $posts as $post ) {
+        $post_categories = get_the_category( $post->ID );
+        $cat_names = array_map( function( $cat ) { return $cat->name; }, $post_categories );
+        
+        $map['posts'][] = array(
+            'id'         => $post->ID,
+            'title'      => $post->post_title,
+            'url'        => get_permalink( $post->ID ),
+            'slug'       => $post->post_name,
+            'categories' => $cat_names,
+            'excerpt'    => wp_strip_all_tags( $post->post_excerpt ),
+        );
+    }
+
+    // Get all post categories
+    $categories = get_categories( array( 'hide_empty' => false, 'number' => 100 ) );
+    foreach ( $categories as $cat ) {
+        $map['categories'][] = array(
+            'id'        => $cat->term_id,
+            'name'      => $cat->name,
+            'url'       => get_category_link( $cat->term_id ),
+            'slug'      => $cat->slug,
+            'count'     => $cat->count,
+            'post_count' => $cat->count,
+        );
+    }
+
+    // Get all product categories (WooCommerce)
+    if ( class_exists( 'WooCommerce' ) ) {
+        $product_cats = get_terms( array(
+            'taxonomy'   => 'product_cat',
+            'hide_empty' => false,
+            'number'     => 100,
+        ) );
+        if ( ! is_wp_error( $product_cats ) ) {
+            foreach ( $product_cats as $pcat ) {
+                $map['product_categories'][] = array(
+                    'id'        => $pcat->term_id,
+                    'name'      => $pcat->name,
+                    'url'       => get_term_link( $pcat->term_id, 'product_cat' ),
+                    'slug'      => $pcat->slug,
+                    'count'     => $pcat->count,
+                    'description' => wp_strip_all_tags( $pcat->description ),
+                );
+            }
+        }
+    }
+
+    // Get all registered menus and their items
+    $menus = wp_get_nav_menus();
+    foreach ( $menus as $menu ) {
+        $menu_items = wp_get_nav_menu_items( $menu->term_id );
+        if ( $menu_items ) {
+            $items_list = array();
+            foreach ( $menu_items as $item ) {
+                if ( $item->menu_item_parent == 0 ) { // Only get top-level items
+                    $items_list[] = array(
+                        'id'    => $item->ID,
+                        'title' => $item->title,
+                        'url'   => $item->url,
+                        'label' => $item->attr_title ?: $item->title,
+                    );
+                }
+            }
+            if ( ! empty( $items_list ) ) {
+                $map['menus'][] = array(
+                    'name'  => $menu->name,
+                    'items' => $items_list,
+                );
+            }
+        }
+    }
+
+    // Add common archive pages
+    $map['archives'][] = array(
+        'title' => 'Blog Home',
+        'url'   => get_home_url() . '/blog/',
+    );
+
+    if ( class_exists( 'WooCommerce' ) ) {
+        $map['archives'][] = array(
+            'title' => 'Shop',
+            'url'   => wc_get_page_permalink( 'shop' ),
+        );
+    }
+
+    set_transient( 'shopys_ai_website_map', $map, 10 * MINUTE_IN_SECONDS );
+    return $map;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   2.6 URL TO PAGE IDENTIFIER
+   ═══════════════════════════════════════════════════════════════════ */
+
+function shopys_ai_identify_page_from_url( $url ) {
+    $website_map = shopys_ai_get_website_map();
+    $url_normalized = strtolower( rtrim( $url, '/' ) );
+    
+    // Check if it's homepage
+    $home_url_normalized = strtolower( rtrim( home_url(), '/' ) );
+    if ( $url_normalized === $home_url_normalized ) {
+        return array(
+            'type'  => 'homepage',
+            'title' => 'Home',
+            'url'   => $url,
+        );
+    }
+
+    // Check pages
+    foreach ( $website_map['pages'] as $page ) {
+        $page_url_normalized = strtolower( rtrim( $page['url'], '/' ) );
+        if ( $url_normalized === $page_url_normalized || strpos( $url_normalized, $page_url_normalized ) === 0 ) {
+            return array(
+                'type'  => 'page',
+                'title' => $page['title'],
+                'url'   => $page['url'],
+                'slug'  => $page['slug'],
+            );
+        }
+    }
+
+    // Check posts
+    foreach ( $website_map['posts'] as $post ) {
+        $post_url_normalized = strtolower( rtrim( $post['url'], '/' ) );
+        if ( $url_normalized === $post_url_normalized || strpos( $url_normalized, $post_url_normalized ) === 0 ) {
+            return array(
+                'type'       => 'post',
+                'title'      => $post['title'],
+                'url'        => $post['url'],
+                'slug'       => $post['slug'],
+                'categories' => $post['categories'],
+            );
+        }
+    }
+
+    // Check categories
+    foreach ( $website_map['categories'] as $cat ) {
+        $cat_url_normalized = strtolower( rtrim( $cat['url'], '/' ) );
+        if ( $url_normalized === $cat_url_normalized || strpos( $url_normalized, $cat_url_normalized ) === 0 ) {
+            return array(
+                'type'  => 'category',
+                'title' => $cat['name'],
+                'url'   => $cat['url'],
+                'slug'  => $cat['slug'],
+                'count' => $cat['post_count'],
+            );
+        }
+    }
+
+    // Check product categories
+    foreach ( $website_map['product_categories'] as $pcat ) {
+        $pcat_url_normalized = strtolower( rtrim( $pcat['url'], '/' ) );
+        if ( $url_normalized === $pcat_url_normalized || strpos( $url_normalized, $pcat_url_normalized ) === 0 ) {
+            return array(
+                'type'  => 'product_category',
+                'title' => $pcat['name'],
+                'url'   => $pcat['url'],
+                'slug'  => $pcat['slug'],
+                'count' => $pcat['count'],
+            );
+        }
+    }
+
+    // Check archives
+    foreach ( $website_map['archives'] as $archive ) {
+        $archive_url_normalized = strtolower( rtrim( $archive['url'], '/' ) );
+        if ( $url_normalized === $archive_url_normalized || strpos( $url_normalized, $archive_url_normalized ) === 0 ) {
+            return array(
+                'type'  => 'archive',
+                'title' => $archive['title'],
+                'url'   => $archive['url'],
+            );
+        }
+    }
+
+    // If no match, return unknown
+    return array(
+        'type'  => 'unknown',
+        'title' => 'Unknown Page',
+        'url'   => $url,
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3. WEB BROWSING / REAL-TIME DATA FETCHER
+   ═══════════════════════════════════════════════════════════════════ */
+
+function shopys_ai_fetch_url( $url ) {
+    // Validate URL
+    if ( ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+        return new WP_Error( 'invalid_url', 'Invalid URL format' );
+    }
+
+    // Fetch URL with cURL - Allow all domains
+    $response = wp_remote_get( $url, array(
+        'timeout'    => 15,
+        'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'sslverify'  => false, // Allow self-signed certificates for localhost
+    ) );
+
+    if ( is_wp_error( $response ) ) {
+        return $response;
+    }
+
+    $body = wp_remote_retrieve_body( $response );
+    $code = wp_remote_retrieve_response_code( $response );
+
+    if ( $code !== 200 ) {
+        return new WP_Error( 'fetch_failed', 'Failed to fetch webpage (HTTP ' . $code . ')' );
+    }
+
+    if ( empty( $body ) ) {
+        return new WP_Error( 'empty_response', 'Webpage returned empty content' );
+    }
+
+    // Extract text content (strip HTML tags)
+    $content = wp_strip_all_tags( $body );
+    $content = preg_replace( '/\s+/', ' ', $content );
+    $content = mb_substr( $content, 0, 3000 ); // Increased limit to 3000 chars
+
+    // Extract additional structural information
+    $page_info = shopys_ai_extract_page_structure( $body, $url );
+
+    return array(
+        'url'              => $url,
+        'content'          => trim( $content ),
+        'fetched'          => current_time( 'mysql' ),
+        'page_title'       => $page_info['title'],
+        'images'           => $page_info['images'],
+        'promotions'       => $page_info['promotions'],
+        'layout_structure' => $page_info['structure'],
+        'headings'         => $page_info['headings'],
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3.2 PAGE STRUCTURE & LAYOUT ANALYZER
+   ═══════════════════════════════════════════════════════════════════ */
+
+function shopys_ai_extract_page_structure( $html, $url ) {
+    $info = array(
+        'title'     => '',
+        'images'    => array(),
+        'promotions' => array(),
+        'structure' => array(),
+        'headings'  => array(),
+    );
+
+    // Extract page title
+    if ( preg_match( '/<title[^>]*>([^<]+)<\/title>/i', $html, $matches ) ) {
+        $info['title'] = trim( $matches[1] );
+    }
+
+    // Extract images (first 5)
+    if ( preg_match_all( '/<img[^>]+src=["\']([^"\']+)["\'][^>]*alt=["\']([^"\']*)["\'][^>]*>/i', $html, $matches ) ) {
+        foreach ( array_slice( array_combine( $matches[1], $matches[2] ), 0, 5 ) as $src => $alt ) {
+            // Make URLs absolute
+            $abs_src = shopys_ai_make_url_absolute( $src, $url );
+            $info['images'][] = array(
+                'src' => $abs_src,
+                'alt' => $alt ?: 'Product image',
+            );
+        }
+    }
+
+    // Extract promotions/sales keywords
+    $promo_keywords = array( 'sale', 'discount', 'offer', 'promotion', 'deal', 'limited time', 'free shipping', 'save', 'off', '% off', 'coupon', 'special' );
+    foreach ( $promo_keywords as $keyword ) {
+        if ( stripos( $html, $keyword ) !== false ) {
+            // Extract surrounding context
+            if ( preg_match( '/([^.]{0,100}' . preg_quote( $keyword, '/' ) . '[^.]{0,100})/i', $html, $matches ) ) {
+                $info['promotions'][] = wp_strip_all_tags( trim( $matches[0] ) );
+            }
+        }
+    }
+    $info['promotions'] = array_slice( array_unique( $info['promotions'] ), 0, 5 );
+
+    // Extract headings (h1, h2, h3) for structure
+    if ( preg_match_all( '/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/i', $html, $matches ) ) {
+        $info['headings'] = array_slice( array_map( function( $h ) {
+            return wp_strip_all_tags( trim( $h ) );
+        }, $matches[1] ), 0, 10 );
+    }
+
+    // Analyze page structure/layout
+    $info['structure'] = array(
+        'has_navigation' => preg_match( '/<nav[^>]*>|<menu[^>]*>/i', $html ) ? 'Yes' : 'No',
+        'has_header'     => preg_match( '/<header[^>]*>|<div[^>]*class=["\']header/i', $html ) ? 'Yes' : 'No',
+        'has_footer'     => preg_match( '/<footer[^>]*>|<div[^>]*class=["\']footer/i', $html ) ? 'Yes' : 'No',
+        'has_sidebar'    => preg_match( '/<aside[^>]*>|<div[^>]*class=["\']sidebar/i', $html ) ? 'Yes' : 'No',
+        'image_count'    => substr_count( $html, '<img' ),
+        'link_count'     => substr_count( $html, '<a ' ),
+    );
+
+    return $info;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3.3 URL HELPER FUNCTION
+   ═══════════════════════════════════════════════════════════════════ */
+
+function shopys_ai_make_url_absolute( $url, $base_url ) {
+    if ( filter_var( $url, FILTER_VALIDATE_URL ) ) {
+        return $url;
+    }
+    
+    $base_parts = parse_url( $base_url );
+    $base_dir = rtrim( dirname( $base_parts['path'] ), '/' ) . '/';
+    
+    if ( substr( $url, 0, 2 ) === '//' ) {
+        return $base_parts['scheme'] . ':' . $url;
+    } elseif ( substr( $url, 0, 1 ) === '/' ) {
+        return $base_parts['scheme'] . '://' . $base_parts['host'] . $url;
+    } else {
+        return $base_parts['scheme'] . '://' . $base_parts['host'] . $base_dir . $url;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3.4 MENU COUNTER FUNCTION
+   ═══════════════════════════════════════════════════════════════════ */
+
+function shopys_ai_count_menu_items() {
+    $website_map = shopys_ai_get_website_map();
+    $menu_summary = array();
+
+    if ( ! empty( $website_map['menus'] ) ) {
+        foreach ( $website_map['menus'] as $menu ) {
+            $menu_summary[] = array(
+                'name'  => $menu['name'],
+                'count' => count( $menu['items'] ),
+                'items' => array_map( function( $item ) { return $item['title']; }, $menu['items'] ),
+            );
+        }
+    }
+
+    return $menu_summary;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   3.5 PRODUCT COMPARISON HELPER
+   ═══════════════════════════════════════════════════════════════════ */
+
+function shopys_ai_extract_product_info( $url, $content ) {
+    // Try to extract product-like information from fetched content
+    $product_info = array(
+        'url'        => $url,
+        'title'      => '',
+        'price'      => '',
+        'features'   => array(),
+        'rating'     => '',
+        'availability' => '',
+    );
+
+    // Extract title (usually from page title or first heading)
+    if ( preg_match( '/<title[^>]*>([^<]+)<\/title>/i', $content, $matches ) ) {
+        $product_info['title'] = trim( strip_tags( $matches[1] ) );
+    }
+
+    // Look for price patterns (common formats: $99, $99.99, etc.)
+    if ( preg_match( '/(\$|€|£)[\s]?([\d,]+\.?\d{0,2})/i', $content, $matches ) ) {
+        $product_info['price'] = $matches[0];
+    }
+
+    // Look for rating patterns (out of 5 or percentage)
+    if ( preg_match( '/(\d+\.?\d*)\s*(?:out of|\/)\s*5/i', $content, $matches ) ) {
+        $product_info['rating'] = $matches[1] . '/5';
+    } elseif ( preg_match( '/rating:?\s*(\d+\.?\d*)%/i', $content, $matches ) ) {
+        $product_info['rating'] = $matches[1] . '%';
+    }
+
+    // Look for availability info
+    if ( preg_match( '/(in stock|available|out of stock|unavailable)/i', $content, $matches ) ) {
+        $product_info['availability'] = $matches[1];
+    }
+
+    // Extract features/specifications (look for common patterns)
+    if ( preg_match_all( '/(?:feature|spec|specification|benefit):?\s*([^.!\n]+[.!])/i', $content, $matches ) ) {
+        $product_info['features'] = array_slice( array_map( 'trim', $matches[1] ), 0, 5 );
+    }
+
+    return $product_info;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   4. CLAUDE API CALLER
    ═══════════════════════════════════════════════════════════════════ */
 
 function shopys_ai_call_claude( $api_key, $system_prompt, $messages, $model = 'claude-haiku-4-5-20251001' ) {
@@ -241,19 +660,113 @@ function shopys_ai_chat_handler() {
         $catalog_text .= "ID:{$p['id']} | {$p['name']} | {$p['price']}" . $attrs . "\n";
     }
 
+    // Get website structure (pages, posts, categories)
+    $website_map = shopys_ai_get_website_map();
+    $pages_list = '';
+    if ( ! empty( $website_map['pages'] ) ) {
+        $pages_list = "\n\nWEBSITE PAGES:\n";
+        foreach ( array_slice( $website_map['pages'], 0, 20 ) as $page ) {
+            $pages_list .= "- {$page['title']}: " . $page['url'] . "\n";
+        }
+    }
+
+    $posts_list = '';
+    if ( ! empty( $website_map['posts'] ) ) {
+        $posts_list = "\n\nRECENT BLOG POSTS:\n";
+        foreach ( array_slice( $website_map['posts'], 0, 15 ) as $post ) {
+            $posts_list .= "- {$post['title']} (" . implode( ', ', $post['categories'] ) . "): " . $post['url'] . "\n";
+        }
+    }
+
+    $categories_list = '';
+    if ( ! empty( $website_map['categories'] ) ) {
+        $categories_list = "\n\nBLOG CATEGORIES:\n";
+        foreach ( array_slice( $website_map['categories'], 0, 10 ) as $cat ) {
+            $categories_list .= "- {$cat['name']} ({$cat['post_count']} posts): " . $cat['url'] . "\n";
+        }
+    }
+
+    $product_categories_list = '';
+    if ( ! empty( $website_map['product_categories'] ) ) {
+        $product_categories_list = "\n\nPRODUCT CATEGORIES:\n";
+        foreach ( array_slice( $website_map['product_categories'], 0, 15 ) as $pcat ) {
+            $product_categories_list .= "- {$pcat['name']} ({$pcat['count']} products): " . $pcat['url'] . "\n";
+        }
+    }
+
+    $menus_list = '';
+    if ( ! empty( $website_map['menus'] ) ) {
+        $menus_list = "\n\nWEBSITE NAVIGATION MENUS:\n";
+        foreach ( array_slice( $website_map['menus'], 0, 5 ) as $menu ) {
+            $menus_list .= "Menu: {$menu['name']}\n";
+            foreach ( array_slice( $menu['items'], 0, 15 ) as $item ) {
+                $menus_list .= "  - {$item['title']}: " . $item['url'] . "\n";
+            }
+        }
+    }
+
     $system_prompt = "You are {$bot_name}, a helpful and friendly shopping assistant for {$store_name} ({$store_url}).
 Currency: {$currency}
+Website URL: {$store_url}
 
 STORE PRODUCTS:
-{$catalog_text}
+{$catalog_text}{$pages_list}{$posts_list}{$categories_list}{$product_categories_list}{$menus_list}
 
-INSTRUCTIONS:
-- Chat naturally and helpfully like an assistant. Answer any question the customer asks.
-- For greetings, small talk, or general questions — just reply conversationally. Do NOT show products.
-- Only recommend products when the customer is clearly asking about buying, looking for, or comparing products.
-- When you do recommend products, add this tag at the very end of your reply (on its own line): [[PRODUCTS:id1,id2,id3]]
-  Use only IDs from the store products list above. Maximum 6 IDs.
-- If not recommending any products, do NOT include the [[PRODUCTS:...]] tag at all.";
+ADVANCED CAPABILITIES:
+LIVE WEBSITE BROWSING:
+- Browse websites in real-time and see their current state
+- Analyze page layout, structure, and navigation live
+- View and describe images from websites
+- Detect current promotions, sales, and special offers
+- Extract headings and page structure information
+- Count navigation menus and their items accurately
+
+STRUCTURE & LAYOUT ANALYSIS:
+- Analyze website navigation and menu structure
+- Identify headers, footers, sidebars, and main content areas
+- Count total links and images on pages
+- Describe how websites are organized
+- Provide detailed information about page structure
+
+PROMOTION DETECTION:
+- Identify and highlight current sales and promotions
+- Extract discount information and special offers
+- Detect limited-time deals and special pricing
+- Provide information about free shipping and coupons
+
+PRODUCT COMPARISON:
+- Compare products from multiple websites simultaneously
+- Analyze prices, features, ratings, and availability
+- Highlight differences between competing products
+- Help customers make informed purchasing decisions
+- Compare up to 5 websites at once
+
+REAL-TIME INFORMATION:
+- Fetch live data from websites
+- Access current product availability
+- View latest promotions and pricing
+- Analyze website layout and current design
+- Provide up-to-date information beyond cached data
+
+CORE INSTRUCTIONS:
+- You can chat naturally and answer any question
+- You have UNLIMITED web browsing access - fetch ANY website URL
+- For questions about website appearance, ask for URL and analyze it live
+- For menu counting, provide accurate counts from website structure
+- For promotions, extract and highlight current offers
+- For images, describe them and provide context
+
+PRODUCT RECOMMENDATIONS:
+- Add this tag at end of reply (on own line): [[PRODUCTS:id1,id2,id3]]
+- Use only IDs from store products list above. Maximum 6 IDs.
+- Do NOT include tag if not recommending products
+
+ALWAYS:
+- Be proactive about fetching live information
+- Provide detailed structural analysis when asked about website layout
+- Help customers understand current website state and promotions
+- Answer questions about website appearance and organization";
+
 
     // Build message history
     $messages = array();
@@ -266,7 +779,334 @@ INSTRUCTIONS:
             );
         }
     }
-    $messages[] = array( 'role' => 'user', 'content' => $message );
+    
+    // Check if user is asking "what page am I on?" or similar
+    $current_page_keywords = array( 'what page', 'which page', 'what am i on', 'current page', 'what page am i', 'which page am i', 'page i am on', 'page i\'m on', 'where am i', 'what\'s this page' );
+    $user_message_lower = strtolower( $message );
+    $asking_about_current_page = false;
+    foreach ( $current_page_keywords as $keyword ) {
+        if ( strpos( $user_message_lower, $keyword ) !== false ) {
+            $asking_about_current_page = true;
+            break;
+        }
+    }
+
+    // If asking about current page, try to get page info from referrer or URL hint
+    if ( $asking_about_current_page ) {
+        $current_page_url = null;
+        
+        // Check if HTTP_REFERER is available
+        if ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
+            $current_page_url = sanitize_url( $_SERVER['HTTP_REFERER'] );
+        }
+        // Also check for page_url in POST data (can be sent from frontend)
+        if ( empty( $current_page_url ) && ! empty( $_POST['page_url'] ) ) {
+            $current_page_url = sanitize_url( $_POST['page_url'] );
+        }
+
+        if ( ! empty( $current_page_url ) ) {
+            $page_info = shopys_ai_identify_page_from_url( $current_page_url );
+            if ( $page_info['type'] !== 'unknown' ) {
+                $page_context = "The user is currently on the " . $page_info['type'] . ": ";
+                if ( $page_info['type'] === 'homepage' ) {
+                    $page_context .= "Home/Homepage";
+                } elseif ( $page_info['type'] === 'page' ) {
+                    $page_context .= "Page: " . $page_info['title'];
+                } elseif ( $page_info['type'] === 'post' ) {
+                    $page_context .= "Blog Post: " . $page_info['title'] . " (Categories: " . implode( ', ', $page_info['categories'] ) . ")";
+                } elseif ( $page_info['type'] === 'category' ) {
+                    $page_context .= "Category: " . $page_info['title'] . " (" . $page_info['count'] . " posts)";
+                } elseif ( $page_info['type'] === 'product_category' ) {
+                    $page_context .= "Product Category: " . $page_info['title'] . " (" . $page_info['count'] . " products)";
+                } elseif ( $page_info['type'] === 'archive' ) {
+                    $page_context .= "Archive: " . $page_info['title'];
+                }
+                $page_context .= "\nURL: " . $current_page_url;
+
+                // Add this info to message
+                $messages[] = array(
+                    'role'    => 'user',
+                    'content' => $page_context . "\n\n" . $message
+                );
+
+                $result = shopys_ai_call_claude( $api_key, $system_prompt, $messages, $model );
+
+                if ( is_wp_error( $result ) ) {
+                    wp_send_json_error( array( 'message' => 'Sorry, something went wrong: ' . $result->get_error_message() ) );
+                }
+
+                $product_ids = array();
+                $ai_message  = $result;
+
+                if ( preg_match( '/\[\[PRODUCTS:([\d,\s]+)\]\]/i', $result, $match ) ) {
+                    $ai_message = preg_replace( '/\[\[PRODUCTS:([\d,\s]+)\]\]/i', '', $result );
+                    $ids = array_map( 'intval', array_filter( explode( ',', $match[1] ) ) );
+                    $product_ids = array_slice( array_unique( $ids ), 0, 6 );
+                }
+
+                $ai_message = trim( $ai_message );
+
+                wp_send_json_success( array(
+                    'message'  => $ai_message,
+                    'products' => $product_ids,
+                ) );
+            }
+        }
+    }
+    
+    // Check if user is asking about layout, images, or promotions
+    $layout_keywords = array( 'layout', 'design', 'structure', 'how does', 'looks like', 'appear', 'navigation bar', 'header', 'footer', 'sidebar', 'organized', 'visual', 'style', 'image', 'photo', 'picture' );
+    $promo_keywords = array( 'promotion', 'sale', 'discount', 'offer', 'deal', 'special', 'free shipping', 'coupon', 'price', 'cost', 'cheaper', 'expensive' );
+    $is_layout_request = false;
+    $is_image_request = false;
+    $is_promo_request = false;
+    
+    foreach ( $layout_keywords as $keyword ) {
+        if ( strpos( $user_message_lower, $keyword ) !== false ) {
+            $is_layout_request = true;
+            if ( strpos( $user_message_lower, 'image' ) !== false || strpos( $user_message_lower, 'photo' ) !== false || strpos( $user_message_lower, 'picture' ) !== false ) {
+                $is_image_request = true;
+            }
+            break;
+        }
+    }
+    
+    foreach ( $promo_keywords as $keyword ) {
+        if ( strpos( $user_message_lower, $keyword ) !== false ) {
+            $is_promo_request = true;
+            break;
+        }
+    }
+
+    // Check if asking about menu count or navigation structure
+    $menu_counting_keywords = array( 'how many menu', 'count menu', 'menu items', 'navigation items', 'how many links', 'menu structure', 'menu count' );
+    $is_menu_count_request = false;
+    foreach ( $menu_counting_keywords as $keyword ) {
+        if ( strpos( $user_message_lower, $keyword ) !== false ) {
+            $is_menu_count_request = true;
+            break;
+        }
+    }
+    
+    // If menu count request, provide menu information
+    if ( $is_menu_count_request ) {
+        $menu_summary = shopys_ai_count_menu_items();
+        $menu_context = "MENU STRUCTURE ANALYSIS:\n";
+        if ( ! empty( $menu_summary ) ) {
+            foreach ( $menu_summary as $menu ) {
+                $menu_context .= "- Menu '{$menu['name']}' has " . $menu['count'] . " items: " . implode( ', ', $menu['items'] ) . "\n";
+            }
+        } else {
+            $menu_context .= "No menus found on this website.\n";
+        }
+
+        $messages[] = array(
+            'role'    => 'user',
+            'content' => $menu_context . "\nUser question: " . $message
+        );
+
+        $result = shopys_ai_call_claude( $api_key, $system_prompt, $messages, $model );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( array( 'message' => 'Sorry, something went wrong: ' . $result->get_error_message() ) );
+        }
+
+        $product_ids = array();
+        $ai_message  = $result;
+
+        if ( preg_match( '/\[\[PRODUCTS:([\d,\s]+)\]\]/i', $result, $match ) ) {
+            $ai_message = preg_replace( '/\[\[PRODUCTS:([\d,\s]+)\]\]/i', '', $result );
+            $ids = array_map( 'intval', array_filter( explode( ',', $match[1] ) ) );
+            $product_ids = array_slice( array_unique( $ids ), 0, 6 );
+        }
+
+        $ai_message = trim( $ai_message );
+
+        wp_send_json_success( array(
+            'message'  => $ai_message,
+            'products' => $product_ids,
+        ) );
+    }
+    
+    // Check if user is asking for product comparison from other websites
+    $comparison_keywords = array( 'compare', 'comparison', 'vs', 'versus', 'better', 'difference', 'similar products', 'competitor', 'alternative', 'same price', 'cheaper', 'expensive' );
+    $is_comparison_request = false;
+    foreach ( $comparison_keywords as $keyword ) {
+        if ( strpos( $user_message_lower, $keyword ) !== false ) {
+            $is_comparison_request = true;
+            break;
+        }
+    }
+
+    // If comparison request, try to fetch multiple URLs if provided
+    if ( $is_comparison_request ) {
+        // Extract ALL URLs from the message (not just first one)
+        $all_url_matches = array();
+        if ( preg_match_all( '/(https?:\/\/[^\s]+|www\.[^\s]+)/i', $message, $matches ) ) {
+            foreach ( $matches[1] as $url ) {
+                $http_url = $url;
+                if ( strpos( $http_url, 'http' ) !== 0 ) {
+                    $http_url = 'https://' . $http_url;
+                }
+                $all_url_matches[] = $http_url;
+            }
+        }
+        
+        if ( ! empty( $all_url_matches ) ) {
+            $should_fetch_website = true;
+            $urls_to_fetch = array_slice( array_unique( $all_url_matches ), 0, 5 ); // Fetch up to 5 URLs for comparison
+        } else {
+            $should_fetch_website = true; // Still fetch for content even without explicit URLs
+        }
+    }
+    
+    // Check if user is asking about website content (pages, posts, categories, etc)
+    $web_keywords = array( 'menu', 'header', 'navigation', 'page', 'link', 'structure', 'layout', 'section', 'website', 'site', 'post', 'article', 'blog', 'category', 'product', 'page content', 'about', 'contact' );
+    $should_fetch_website = $is_comparison_request ? $should_fetch_website : false;
+    if ( ! $should_fetch_website ) {
+        $should_fetch_website = false;
+    }
+
+    // Check for specific keywords and extract potential page/post names
+    if ( ! $is_comparison_request ) {
+        foreach ( $web_keywords as $keyword ) {
+            if ( strpos( $user_message_lower, $keyword ) !== false ) {
+                $should_fetch_website = true;
+                break;
+            }
+        }
+    }
+
+    // ALSO check if user provided direct URLs (http, https, www)
+    if ( ! $is_comparison_request && preg_match( '/(https?:\/\/[^\s]+|www\.[^\s]+)/i', $message, $url_matches ) ) {
+        $should_fetch_website = true;
+        $provided_url = $url_matches[1];
+        // Add protocol if only www provided
+        if ( strpos( $provided_url, 'http' ) !== 0 ) {
+            $provided_url = 'https://' . $provided_url;
+        }
+        $urls_to_fetch[] = $provided_url;
+    }
+
+    // If asking about website content, identify which URLs to fetch
+    if ( $should_fetch_website ) {
+        if ( empty( $urls_to_fetch ) ) {
+            $website_map = shopys_ai_get_website_map();
+            
+            // Try to match user question to specific pages/posts/categories
+            foreach ( $website_map['pages'] as $page ) {
+                $page_title_lower = strtolower( $page['title'] );
+                if ( strpos( $user_message_lower, strtolower( str_replace( array( '-', '_' ), ' ', $page['slug'] ) ) ) !== false ||
+                     strpos( $user_message_lower, $page_title_lower ) !== false ) {
+                    $urls_to_fetch[] = $page['url'];
+                }
+            }
+
+            foreach ( $website_map['posts'] as $post ) {
+                $post_title_lower = strtolower( $post['title'] );
+                if ( strpos( $user_message_lower, $post_title_lower ) !== false ||
+                     strpos( $user_message_lower, strtolower( str_replace( array( '-', '_' ), ' ', $post['slug'] ) ) ) !== false ) {
+                    $urls_to_fetch[] = $post['url'];
+                }
+            }
+
+            foreach ( $website_map['categories'] as $cat ) {
+                $cat_name_lower = strtolower( $cat['name'] );
+                if ( strpos( $user_message_lower, $cat_name_lower ) !== false ) {
+                    $urls_to_fetch[] = $cat['url'];
+                }
+            }
+
+            // Match product categories
+            foreach ( $website_map['product_categories'] as $pcat ) {
+                $pcat_name_lower = strtolower( $pcat['name'] );
+                if ( strpos( $user_message_lower, $pcat_name_lower ) !== false ||
+                     strpos( $user_message_lower, strtolower( str_replace( array( '-', '_' ), ' ', $pcat['slug'] ) ) ) !== false ) {
+                    $urls_to_fetch[] = $pcat['url'];
+                }
+            }
+
+            // Match menu items
+            foreach ( $website_map['menus'] as $menu ) {
+                foreach ( $menu['items'] as $item ) {
+                    $item_title_lower = strtolower( $item['title'] );
+                    if ( strpos( $user_message_lower, $item_title_lower ) !== false ) {
+                        $urls_to_fetch[] = $item['url'];
+                    }
+                }
+            }
+
+            // If no specific match, fetch homepage
+            if ( empty( $urls_to_fetch ) ) {
+                $urls_to_fetch[] = $store_url;
+            }
+        }
+
+        // Fetch content from identified URLs
+        $all_content = '';
+        $fetch_limit = $is_comparison_request ? 5 : 3; // Allow more URLs for comparisons
+        foreach ( array_slice( $urls_to_fetch, 0, $fetch_limit ) as $url ) {
+            $website_content = shopys_ai_fetch_url( $url );
+            if ( ! is_wp_error( $website_content ) ) {
+                $content_label = $is_comparison_request ? "[PRODUCT FROM: {$url}]" : "[CONTENT FROM: {$url}]";
+                $all_content .= $content_label . "\n" . $website_content['content'] . "\n\n";
+                
+                // Add layout/structure information if requested
+                if ( $is_layout_request && ! empty( $website_content['layout_structure'] ) ) {
+                    $all_content .= "[LAYOUT ANALYSIS FOR: {$url}]\n";
+                    $all_content .= "Page Title: " . ( $website_content['page_title'] ?: 'N/A' ) . "\n";
+                    $all_content .= "Has Navigation: " . $website_content['layout_structure']['has_navigation'] . "\n";
+                    $all_content .= "Has Header: " . $website_content['layout_structure']['has_header'] . "\n";
+                    $all_content .= "Has Footer: " . $website_content['layout_structure']['has_footer'] . "\n";
+                    $all_content .= "Has Sidebar: " . $website_content['layout_structure']['has_sidebar'] . "\n";
+                    $all_content .= "Total Images: " . $website_content['layout_structure']['image_count'] . "\n";
+                    $all_content .= "Total Links: " . $website_content['layout_structure']['link_count'] . "\n\n";
+                }
+                
+                // Add image information if requested
+                if ( $is_image_request && ! empty( $website_content['images'] ) ) {
+                    $all_content .= "[IMAGES ON: {$url}]\n";
+                    foreach ( $website_content['images'] as $img ) {
+                        $all_content .= "- Image: " . $img['alt'] . " (URL: " . $img['src'] . ")\n";
+                    }
+                    $all_content .= "\n";
+                }
+                
+                // Add promotion information if requested
+                if ( $is_promo_request && ! empty( $website_content['promotions'] ) ) {
+                    $all_content .= "[PROMOTIONS/SALES ON: {$url}]\n";
+                    foreach ( $website_content['promotions'] as $promo ) {
+                        $all_content .= "- " . $promo . "\n";
+                    }
+                    $all_content .= "\n";
+                }
+            }
+        }
+
+        if ( ! empty( $all_content ) ) {
+            $content_instruction = $is_comparison_request 
+                ? "Based on the above product information from multiple sources, provide a detailed comparison including prices, features, availability, ratings, and specifications. Highlight similarities and differences."
+                : ( $is_layout_request 
+                    ? "Based on the above website layout and structure information, describe how the website is organized, its visual structure, and component placement."
+                    : ( $is_image_request
+                        ? "Based on the above image information, describe what images are on the website and what they represent."
+                        : ( $is_promo_request
+                            ? "Based on the above promotions and sales information, tell me about the current offers and deals."
+                            : "Based on the above website content, "
+                        )
+                    )
+                );
+            
+            $messages[] = array(
+                'role'    => 'user',
+                'content' => "[WEBSITE CONTENT ANALYSIS]\n\n" . $all_content . "[END CONTENT]\n\n" . $content_instruction . " " . $message
+            );
+        } else {
+            $messages[] = array( 'role' => 'user', 'content' => $message );
+        }
+    } else {
+        $messages[] = array( 'role' => 'user', 'content' => $message );
+    }
 
     $result = shopys_ai_call_claude( $api_key, $system_prompt, $messages, $model );
 
@@ -322,7 +1162,30 @@ INSTRUCTIONS:
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   5. ENQUEUE ASSETS & RENDER WIDGET
+   5. WEB BROWSING AJAX ENDPOINT
+   ═══════════════════════════════════════════════════════════════════ */
+
+add_action( 'wp_ajax_shopys_ai_fetch_url', 'shopys_ai_fetch_url_handler' );
+function shopys_ai_fetch_url_handler() {
+    check_ajax_referer( 'shopys_ai_nonce', 'nonce' );
+
+    $url = isset( $_POST['url'] ) ? esc_url_raw( wp_unslash( $_POST['url'] ) ) : '';
+    
+    if ( empty( $url ) ) {
+        wp_send_json_error( array( 'message' => 'No URL provided' ) );
+    }
+
+    $result = shopys_ai_fetch_url( $url );
+
+    if ( is_wp_error( $result ) ) {
+        wp_send_json_error( array( 'message' => 'Failed to fetch: ' . $result->get_error_message() ) );
+    }
+
+    wp_send_json_success( $result );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   6. ENQUEUE ASSETS & RENDER WIDGET
    ═══════════════════════════════════════════════════════════════════ */
 
 add_action( 'wp_enqueue_scripts', 'shopys_ai_chatbot_assets' );
