@@ -1,0 +1,325 @@
+/*
+Theme Name: Shopys
+Theme URI: https://example.com/shopys
+Author: Admin
+Author URI: https://example.com
+Description: Shopys is a child theme of Open Shop.
+Template: open-shop
+Version: 1.0.0
+Text Domain: shopys
+*/
+
+/* =============================================
+   DESIGN TOKENS
+   ============================================= */
+:root {
+    --brand-primary: #00c44f;
+    --brand-dark: #009a3d;
+    --brand-glow: rgba(0, 196, 79, 0.18);
+    --surface-card: #f9fafb;
+    --surface-hover: #f0fdf4;
+    --text-primary: #111827;
+    --border-subtle: rgba(0, 0, 0, 0.07);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05);
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    --font-sans: 'DM Sans', 'Segoe UI', sans-serif;
+}
+
+/* =============================================
+   CONTENT LINKS
+   ============================================= */
+article .entry-content a,
+article .comment-content a,
+.woocommerce-Tabs-panel--description a,
+.woocommerce-product-details__short-description a,
+.product_meta a {
+    text-decoration: underline !important;
+    text-underline-offset: 3px !important;
+    text-decoration-color: var(--brand-primary) !important;
+    color: var(--text-primary) !important;
+    transition: var(--transition) !important;
+}
+
+article .entry-content a:hover,
+article .comment-content a:hover,
+.product_meta a:hover {
+    color: var(--brand-primary) !important;
+}
+
+article .entry-content .thunk-post-info a,
+article .entry-content .thunk-readmore.button {
+    text-decoration: none !important;
+}
+
+/* =============================================
+   BLOG POST GRID
+   ============================================= */
+article.thunk-post-article.post {
+    float: left;
+    width: 32%;
+    clear: none;
+    margin-right: 2%;
+    background: var(--surface-card);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-subtle);
+    transition: var(--transition);
+}
+
+article.thunk-post-article.post:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: rgba(0, 196, 79, 0.2);
+}
+
+article.thunk-post-article.post:nth-child(3n+3) {
+    margin-right: 0;
+}
+
+h2.thunk-post-title,
+h1.thunk-post-title {
+    margin-bottom: 6px;
+    font-size: 17px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    line-height: 1.35;
+    color: var(--text-primary);
+}
+
+/* =============================================
+   ICON / CART
+   ============================================= */
+.cat-toggle {
+    height: 100%;
+    padding: 0;
+}
+
+.thunk-icon .taiowc-icon .th-icon {
+    color: #fff;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.thunk-icon .taiowc-cart-item {
+    height: 49px;
+    line-height: 49px;
+    transition: var(--transition);
+}
+
+.thunk-icon .taiowc-cart-item:hover {
+    opacity: 0.85;
+}
+
+/* =============================================
+   ACCORDION ARROW
+   ============================================= */
+.menu-category-list ul[data-menu-style="accordion"]>li>a>.arrow::before {
+    float: initial;
+    transition: transform 0.2s ease;
+}
+
+/* =============================================
+   LAYOUT
+   ============================================= */
+.sidebar-content-area,
+#sidebar-primary,
+.below-header {
+    display: none !important;
+}
+
+.primary-content-area {
+    width: 100% !important;
+    float: none !important;
+}
+
+.main-area {
+    width: 100%;
+    ;
+}
+
+/* =============================================
+   PREMIUM NAVIGATION
+   ============================================= */
+#site-navigation ul.open-shop-menu {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px !important;
+    margin: 0;
+    padding: 4px 0;
+}
+
+#site-navigation ul.open-shop-menu>li {
+    margin: 0 !important;
+    padding: 0 !important;
+    position: relative;
+}
+
+#site-navigation ul.open-shop-menu>li>a {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 8px 15px !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font-sans) !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    letter-spacing: 0.01em !important;
+    color: var(--text-primary) !important;
+    text-decoration: none !important;
+    transition: var(--transition) !important;
+    position: relative;
+    white-space: nowrap;
+}
+
+#site-navigation ul.open-shop-menu>li>a::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 15px;
+    right: 15px;
+    height: 2px;
+    background: var(--brand-primary);
+    border-radius: 2px;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#site-navigation ul.open-shop-menu>li>a:hover {
+    background-color: var(--surface-hover) !important;
+    color: var(--brand-dark) !important;
+}
+
+#site-navigation ul.open-shop-menu>li>a:hover::after {
+    transform: scaleX(1);
+}
+
+/* Active state */
+#site-navigation ul.open-shop-menu>li.current-menu-item>a,
+#site-navigation ul.open-shop-menu>li.current-page-ancestor>a {
+    color: var(--brand-dark) !important;
+    background-color: var(--surface-hover) !important;
+}
+
+#site-navigation ul.open-shop-menu>li.current-menu-item>a::after,
+#site-navigation ul.open-shop-menu>li.current-page-ancestor>a::after {
+    transform: scaleX(1);
+}
+
+/* Arrow */
+#site-navigation ul.open-shop-menu>li>a>span.arrow {
+    margin-left: 3px !important;
+    font-size: 10px !important;
+    opacity: 0.5;
+    transition: transform 0.2s ease, opacity 0.2s ease !important;
+}
+
+#site-navigation ul.open-shop-menu>li:hover>a>span.arrow {
+    transform: rotate(180deg);
+    opacity: 1;
+}
+
+/* =============================================
+   DROPDOWN SUB-MENUS
+   ============================================= */
+#site-navigation ul.open-shop-menu>li>ul.sub-menu {
+    background: #fff !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.10), 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+    padding: 6px !important;
+    min-width: 200px !important;
+    animation: dropIn 0.18s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes dropIn {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#site-navigation ul.open-shop-menu>li>ul.sub-menu li a {
+    display: block !important;
+    padding: 9px 14px !important;
+    border-radius: var(--radius-sm) !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    color: var(--text-primary) !important;
+    text-decoration: none !important;
+    transition: var(--transition) !important;
+}
+
+#site-navigation ul.open-shop-menu>li>ul.sub-menu li a:hover {
+    background: var(--surface-hover) !important;
+    color: var(--brand-dark) !important;
+    padding-left: 18px !important;
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+@media screen and (max-width: 1024px) {
+    #site-navigation ul.open-shop-menu>li>a {
+        padding: 7px 12px !important;
+        font-size: 13.5px !important;
+    }
+}
+
+@media screen and (max-width: 767px) {
+    .cat-toggle {
+        margin: 0;
+    }
+
+    .thunk-icon .taiowc-cart-item {
+        width: 36px;
+        height: 36px;
+        line-height: 36px;
+    }
+
+    article.thunk-post-article.post {
+        float: left;
+        width: 49%;
+        clear: none;
+        margin-right: 2%;
+    }
+
+    article.thunk-post-article.post:nth-child(2n+2) {
+        margin-right: 0;
+    }
+
+    article.thunk-post-article.post:nth-child(3n+3) {
+        margin-right: 2%;
+    }
+
+    #site-navigation ul.open-shop-menu {
+        flex-direction: column !important;
+        gap: 2px !important;
+        padding: 8px 0 !important;
+    }
+
+    #site-navigation ul.open-shop-menu>li {
+        width: 100%;
+    }
+
+    #site-navigation ul.open-shop-menu>li>a {
+        width: 100% !important;
+        padding: 10px 16px !important;
+        font-size: 15px !important;
+    }
+
+    #site-navigation ul.open-shop-menu>li>a::after {
+        display: none;
+    }
+}

@@ -1,0 +1,562 @@
+/* ═══════════════════════════════════════════════════════════════════
+   AI Shopping Assistant – Chat Widget Styles
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Variables ───────────────────────────────────────────────────── */
+:root {
+    --sai-primary:    #00c44f;
+    --sai-primary-dk: #00a341;
+    --sai-bg:         #f5f6f8;
+    --sai-white:      #ffffff;
+    --sai-text:       #1a1a2e;
+    --sai-text-light: #64748b;
+    --sai-border:     #e2e8f0;
+    --sai-shadow:     0 8px 32px rgba(0, 0, 0, 0.15);
+    --sai-radius:     14px;
+}
+
+/* ── Toggle Button ───────────────────────────────────────────────── */
+.sai-toggle {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 99999;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: var(--sai-primary);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0, 196, 79, 0.4);
+    transition: transform 0.3s, box-shadow 0.3s, background 0.3s;
+}
+
+.sai-toggle:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 28px rgba(0, 196, 79, 0.5);
+    background: var(--sai-primary-dk);
+}
+
+.sai-toggle .sai-icon-close { display: none; }
+.sai-toggle.sai-active .sai-icon-chat { display: none; }
+.sai-toggle.sai-active .sai-icon-close { display: block; }
+
+.sai-toggle.sai-active {
+    background: #374151;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Chat Window ─────────────────────────────────────────────────── */
+.sai-window {
+    position: fixed;
+    bottom: 100px;
+    right: 24px;
+    z-index: 99998;
+    width: 400px;
+    max-width: calc(100vw - 32px);
+    height: 560px;
+    max-height: calc(100vh - 140px);
+    background: var(--sai-white);
+    border-radius: var(--sai-radius);
+    box-shadow: var(--sai-shadow);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px) scale(0.95);
+    transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+}
+
+.sai-window.sai-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+.sai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--sai-primary);
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.sai-header-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sai-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sai-header-name {
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.2;
+}
+
+.sai-header-status {
+    font-size: 11px;
+    opacity: 0.85;
+    margin-top: 2px;
+}
+
+.sai-close,
+.sai-fullscreen,
+.sai-new-chat {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.2s;
+}
+
+.sai-close:hover,
+.sai-fullscreen:hover,
+.sai-new-chat:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.sai-fullscreen .sai-icon-collapse { display: none; }
+.sai-window.sai-fullscreen-mode .sai-fullscreen .sai-icon-expand  { display: none; }
+.sai-window.sai-fullscreen-mode .sai-fullscreen .sai-icon-collapse { display: flex; }
+
+/* ── Fullscreen Mode ─────────────────────────────────────────────── */
+.sai-window.sai-fullscreen-mode {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+}
+
+.sai-window.sai-fullscreen-mode .sai-products-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+/* ── Messages Area ───────────────────────────────────────────────── */
+.sai-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    background: var(--sai-bg);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    scroll-behavior: smooth;
+}
+
+.sai-messages::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sai-messages::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+
+/* ── Message Bubbles ─────────────────────────────────────────────── */
+.sai-msg {
+    display: flex;
+    animation: saiFadeIn 0.3s ease;
+}
+
+@keyframes saiFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.sai-msg-user {
+    justify-content: flex-end;
+}
+
+.sai-msg-bot {
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 95%;
+}
+
+.sai-bubble {
+    max-width: 88%;
+    border-radius: 16px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    line-height: 1.55;
+    word-wrap: break-word;
+}
+
+.sai-bubble p {
+    margin: 0 0 6px;
+}
+
+.sai-bubble p:last-child {
+    margin-bottom: 0;
+}
+
+.sai-bubble-user {
+    background: var(--sai-primary);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+}
+
+.sai-bubble-bot {
+    background: var(--sai-white);
+    color: var(--sai-text);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    max-width: 95%;
+}
+
+.sai-bot-text {
+    margin-bottom: 4px;
+}
+
+.sai-bot-text strong {
+    font-weight: 600;
+    color: var(--sai-text);
+}
+
+/* ── Typing Indicator ────────────────────────────────────────────── */
+.sai-typing {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 14px 20px;
+}
+
+.sai-dot {
+    width: 8px;
+    height: 8px;
+    background: #94a3b8;
+    border-radius: 50%;
+    animation: saiBounce 1.2s infinite;
+}
+
+.sai-dot:nth-child(2) { animation-delay: 0.15s; }
+.sai-dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes saiBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30%           { transform: translateY(-6px); opacity: 1; }
+}
+
+/* ── Product Grid ────────────────────────────────────────────────── */
+.sai-products-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.sai-card {
+    background: var(--sai-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--sai-border);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.sai-card:hover {
+    border-color: var(--sai-primary);
+    box-shadow: 0 2px 10px rgba(0, 196, 79, 0.12);
+}
+
+.sai-card-img-link {
+    display: block;
+    width: 100%;
+    height: 120px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.sai-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    transition: transform 0.3s;
+    padding: 6px;
+}
+
+.sai-card:hover .sai-card-img {
+    transform: scale(1.05);
+}
+
+.sai-card-body {
+    padding: 8px 10px 10px;
+}
+
+.sai-card-cat {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--sai-primary-dk);
+    background: rgba(0, 196, 79, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+}
+
+.sai-card-name {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--sai-text);
+    text-decoration: none;
+    line-height: 1.3;
+    margin-bottom: 4px;
+    /* 2 line clamp */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.sai-card-name:hover {
+    color: var(--sai-primary);
+}
+
+.sai-card-price {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--sai-primary-dk);
+    margin-bottom: 4px;
+}
+
+.sai-card-price del {
+    color: #94a3b8;
+    font-weight: 400;
+    font-size: 11px;
+}
+
+.sai-card-price ins {
+    text-decoration: none;
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.sai-card-stock {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.sai-card-stock.sai-in {
+    color: var(--sai-primary-dk);
+}
+
+.sai-card-stock.sai-out {
+    color: #dc2626;
+}
+
+.sai-card-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.sai-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    line-height: 1;
+    border: none;
+}
+
+.sai-btn-view {
+    background: var(--sai-white);
+    color: var(--sai-text);
+    border: 1px solid var(--sai-border);
+}
+
+.sai-btn-view:hover {
+    background: var(--sai-text);
+    color: #fff;
+    border-color: var(--sai-text);
+}
+
+.sai-btn-cart {
+    background: var(--sai-primary);
+    color: #fff;
+}
+
+.sai-btn-cart:hover {
+    background: var(--sai-primary-dk);
+    color: #fff;
+}
+
+/* ── Model Toolbar ───────────────────────────────────────────────── */
+.sai-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-top: 1px solid var(--sai-border);
+    background: var(--sai-white);
+    flex-shrink: 0;
+}
+
+.sai-model-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sai-text-light);
+    white-space: nowrap;
+}
+
+.sai-model-select {
+    font-size: 11.5px;
+    font-family: inherit;
+    color: var(--sai-text);
+    background: var(--sai-bg);
+    border: 1px solid var(--sai-border);
+    border-radius: 6px;
+    padding: 3px 22px 3px 8px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 7px center;
+    transition: border-color 0.2s;
+}
+
+.sai-model-select:focus,
+.sai-model-select:hover {
+    border-color: var(--sai-primary);
+}
+
+/* ── Input Area ──────────────────────────────────────────────────── */
+.sai-input-area {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px 14px;
+    border-top: 1px solid var(--sai-border);
+    background: var(--sai-white);
+    flex-shrink: 0;
+}
+
+.sai-input {
+    flex: 1;
+    border: 1px solid var(--sai-border);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 13.5px;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    background: var(--sai-bg);
+    color: var(--sai-text);
+    max-height: 100px;
+    line-height: 1.4;
+    transition: border-color 0.2s;
+}
+
+.sai-input:focus {
+    border-color: var(--sai-primary);
+    background: var(--sai-white);
+}
+
+.sai-input::placeholder {
+    color: #94a3b8;
+}
+
+.sai-send {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 10px;
+    background: var(--sai-primary);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.sai-send:hover {
+    background: var(--sai-primary-dk);
+}
+
+.sai-send:active {
+    transform: scale(0.93);
+}
+
+.sai-send.sai-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .sai-window {
+        right: 0;
+        bottom: 0;
+        width: 100vw;
+        max-width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+
+    .sai-toggle {
+        bottom: 16px;
+        right: 16px;
+        width: 54px;
+        height: 54px;
+    }
+
+    .sai-products-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .sai-window {
+        width: 360px;
+        height: 500px;
+        right: 16px;
+        bottom: 90px;
+    }
+}

@@ -1,0 +1,111 @@
+/* =====================================================
+   PC Nav — Icon + Label Horizontal Buttons
+   ===================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;600&display=swap');
+
+.pc-nav {
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    align-items: stretch;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 0;
+}
+
+.pc-nav .pc-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    text-decoration: none;
+
+    /* ─── Icon + text side-by-side (row) ─── */
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    padding: 10px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(19, 232, 0, 0.28);
+    background: rgba(19, 232, 0, 0.04);
+    color: rgba(19, 232, 0, 0.8);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.pc-nav .pc-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(19, 232, 0, 0.12) 0%, rgba(19, 232, 0, 0) 60%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    pointer-events: none;
+}
+
+.pc-nav .pc-btn i {
+    font-size: 15px;
+    color: #13e800;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.pc-nav .pc-btn span {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1;
+    color: inherit;
+}
+
+/* ── Hover ── */
+.pc-nav .pc-btn:hover {
+    border-color: #13e800;
+    background: rgba(19, 232, 0, 0.08);
+    color: #13e800;
+    transform: translateY(-2px);
+    box-shadow:
+        0 0 0 1px rgba(19, 232, 0, 0.3),
+        0 8px 24px rgba(19, 232, 0, 0.15),
+        0 0 40px rgba(19, 232, 0, 0.06);
+    text-decoration: none;
+}
+
+.pc-nav .pc-btn:hover::before {
+    opacity: 1;
+}
+
+.pc-nav .pc-btn:hover i {
+    transform: scale(1.15);
+}
+
+/* ── Active ── */
+.pc-nav .pc-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 0 0 1px rgba(19, 232, 0, 0.5), 0 2px 8px rgba(19, 232, 0, 0.15);
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+    .pc-nav {
+        flex-wrap: wrap;
+    }
+
+    .pc-nav .pc-btn {
+        flex: 1 1 calc(33.33% - 8px);
+    }
+}
+
+@media (max-width: 500px) {
+    .pc-nav .pc-btn {
+        flex: 1 1 calc(50% - 6px);
+    }
+}

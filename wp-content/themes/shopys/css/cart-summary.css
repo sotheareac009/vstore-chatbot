@@ -1,0 +1,387 @@
+/* =================================================================
+   Cart Summary Shortcode — [cart_summary]
+   Layout: full-width table → bottom row (actions left | totals right)
+   Primary: #13e800
+   ================================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.shopys-cs {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 13.5px;
+    color: #1a1a1a;
+    line-height: 1.5;
+    width: 100%;
+}
+
+/* ── Heading ── */
+.shopys-cs__heading {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: #111;
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2.5px solid #13e800;
+    display: inline-block;
+}
+
+/* ── Empty ── */
+.shopys-cs__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 24px;
+    background: #f9f9f9;
+    border-radius: 14px;
+    border: 1.5px dashed #ddd;
+    text-align: center;
+    color: #888;
+}
+
+.shopys-cs__shop-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 22px;
+    background: #13e800;
+    color: #0a2200;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.2s;
+}
+
+.shopys-cs__shop-btn:hover {
+    background: #0fcc00;
+    color: #0a2200;
+    text-decoration: none;
+}
+
+/* ─────────────────────────────────────────────
+   Items Table (full width)
+   ───────────────────────────────────────────── */
+.shopys-cs__table-wrap {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.05);
+    margin-bottom: 0;
+}
+
+.shopys-cs__row {
+    display: grid;
+    grid-template-columns: 1fr 120px 80px 120px 44px;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 20px;
+}
+
+/* Header row */
+.shopys-cs__row--head {
+    background: #13e800;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    border-radius: 0;
+}
+
+.shopys-cs__row--head>div {
+    color: #fff;
+}
+
+.shopys-cs__col-price,
+.shopys-cs__col-total {
+    text-align: right;
+}
+
+.shopys-cs__col-qty {
+    text-align: center;
+}
+
+/* Item rows */
+.shopys-cs__row--item {
+    border-bottom: 1px solid #f3f3f3;
+    transition: background 0.12s;
+}
+
+.shopys-cs__row--item:last-child {
+    border-bottom: none;
+}
+
+.shopys-cs__row--item:hover {
+    background: #fafffa;
+}
+
+.shopys-cs__col-product {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.shopys-cs__thumb-link {
+    flex-shrink: 0;
+}
+
+.shopys-cs__thumb {
+    width: 46px;
+    height: 46px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    display: block;
+}
+
+.shopys-cs__meta {
+    min-width: 0;
+}
+
+.shopys-cs__name {
+    font-weight: 600;
+    font-size: 13px;
+    color: #111;
+    text-decoration: none;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.15s;
+}
+
+.shopys-cs__name:hover {
+    color: #0fcc00;
+}
+
+.shopys-cs__sku {
+    font-size: 10.5px;
+    color: #bbb;
+    display: block;
+    margin-top: 1px;
+}
+
+.shopys-cs__col-price {
+    font-size: 13px;
+    color: #555;
+    text-align: right;
+}
+
+.shopys-cs__qty-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 24px;
+    background: #f0fff0;
+    border: 1px solid #c8f5c0;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0a7000;
+    padding: 0 6px;
+}
+
+.shopys-cs__col-total {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #111;
+    text-align: right;
+}
+
+.shopys-cs__col-remove {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.shopys-cs__remove-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 7px;
+    color: #ccc;
+    border: 1.5px solid #eee;
+    background: #fff;
+    text-decoration: none;
+    transition: color 0.18s, border-color 0.18s, background 0.18s;
+}
+
+.shopys-cs__remove-btn:hover {
+    color: #e53e3e;
+    border-color: #fca5a5;
+    background: #fff5f5;
+    text-decoration: none;
+}
+
+/* ─────────────────────────────────────────────
+   Bottom Row (buttons left | totals right)
+   ───────────────────────────────────────────── */
+.shopys-cs__bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #e8e8e8;
+    border-top: none;
+    border-radius: 14px;
+    background: #fff;
+    margin-top: 0.5rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+/* ── Actions (left) ── */
+.shopys-cs__actions {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    border-right: 1px solid #f0f0f0;
+}
+
+.shopys-cs__checkout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    background: #13e800;
+    color: #0a2200;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 9px;
+    text-decoration: none;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 3px 12px rgba(19, 232, 0, 0.28);
+}
+
+.shopys-cs__checkout-btn:hover {
+    background: #0fcc00;
+    color: #0a2200;
+    text-decoration: none;
+    box-shadow: 0 5px 18px rgba(19, 232, 0, 0.38);
+}
+
+.shopys-cs__print-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    padding: 11px 16px;
+    background: #fff;
+    color: #333;
+    font-size: 12.5px;
+    font-weight: 600;
+    border-radius: 9px;
+    border: 1.5px solid #ddd;
+    text-decoration: none;
+    transition: border-color 0.18s, background 0.18s, color 0.18s;
+}
+
+.shopys-cs__print-btn:hover {
+    border-color: #13e800;
+    color: #0a7000;
+    background: #f0fff0;
+    text-decoration: none;
+}
+
+.shopys-cs__cart-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: #bbb;
+    text-decoration: none;
+    padding: 2px;
+    transition: color 0.15s;
+}
+
+.shopys-cs__cart-link:hover {
+    color: #13e800;
+    text-decoration: none;
+}
+
+/* ── Totals (right) ── */
+.shopys-cs__totals {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+}
+
+.shopys-cs__totals-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 13px;
+    color: #555;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.shopys-cs__totals-row:last-of-type {
+    border-bottom: none;
+}
+
+.shopys-cs__totals-row span:first-child {
+    font-weight: 500;
+}
+
+.shopys-cs__totals-row span:last-child {
+    font-weight: 600;
+    color: #111;
+}
+
+.shopys-cs__totals-row--discount span:last-child {
+    color: #e53e3e;
+}
+
+.shopys-cs__totals-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding: 13px 16px;
+    background: linear-gradient(135deg, #0a9900, #13e800);
+    border-radius: 10px;
+    color: #fff;
+}
+
+.shopys-cs__totals-total span:first-child {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    opacity: 0.85;
+}
+
+.shopys-cs__totals-total span:last-child {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+    .shopys-cs__row {
+        grid-template-columns: 1fr 80px 50px 80px 36px;
+        padding: 10px 14px;
+    }
+
+    .shopys-cs__bottom {
+        grid-template-columns: 1fr;
+    }
+
+    .shopys-cs__actions {
+        border-right: none;
+        border-bottom: 1px solid #f0f0f0;
+    }
+}

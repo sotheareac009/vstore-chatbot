@@ -1,0 +1,134 @@
+/* ============================================================
+   Products By Category — Section Layout
+   ============================================================ */
+
+/* ── Container ─────────────────────────────────────────────── */
+.pbc-container {
+    width: 100%;
+}
+
+/* ── Each Category Section ──────────────────────────────────── */
+.pbc-section {
+    margin-bottom: 56px;
+    scroll-margin-top: 80px;
+    /* nice anchor offset if you link to #pbc-cat-slug */
+}
+
+/* ── Section Header ─────────────────────────────────────────── */
+.pbc-section-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e8e8e8;
+    flex-wrap: wrap;
+}
+
+.pbc-section-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Coloured accent bar */
+.pbc-section-accent {
+    display: inline-block;
+    width: 4px;
+    height: 28px;
+    border-radius: 4px;
+    background: var(--pbc-accent, #0a0101);
+    flex-shrink: 0;
+}
+
+/* Category title */
+.pbc-section-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0;
+    line-height: 1.2;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.2px;
+}
+
+.pbc-section-count {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #888;
+    margin-left: 6px;
+}
+
+/* Optional category description */
+.pbc-section-desc {
+    font-size: 0.8rem;
+    color: #999;
+    margin: 0;
+    max-width: 480px;
+    line-height: 1.5;
+    width: 100%;
+}
+
+/* "View All" button */
+.pbc-view-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #13e800;
+    border: 1.5px solid #13e800;
+    border-radius: 50px;
+    padding: 6px 16px;
+    text-decoration: none;
+    white-space: nowrap;
+    background: transparent;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.pbc-view-all-btn:hover {
+    background: #13e800;
+    color: #1a1a1a;
+    border-color: #13e800;
+    text-decoration: none;
+}
+
+.pbc-view-all-btn svg {
+    transition: transform 0.2s;
+}
+
+.pbc-view-all-btn:hover svg {
+    transform: translateX(3px);
+}
+
+/* ── No Products State ──────────────────────────────────────── */
+.pbc-no-products {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 60px 20px;
+    color: #ccc;
+    text-align: center;
+}
+
+.pbc-no-products p {
+    margin: 0;
+    font-size: 1rem;
+    color: #aaa;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 600px) {
+    .pbc-section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .pbc-view-all-btn {
+        align-self: flex-start;
+    }
+}

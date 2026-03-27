@@ -1,0 +1,201 @@
+/* ============================================================
+   Telegram Login — Header Button & Dropdown
+   ============================================================ */
+
+/* ── Login Button (logged-out) ──────────────────────────────── */
+.shopys-tg-login-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+}
+
+.shopys-tg-login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    background: #229ED9;
+    /* Telegram blue */
+    border: none;
+    border-radius: 50px;
+    padding: 7px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(34, 158, 217, 0.35);
+    line-height: 1;
+}
+
+.shopys-tg-login-btn:hover {
+    background: #1a8fbd;
+    box-shadow: 0 4px 14px rgba(34, 158, 217, 0.45);
+    transform: translateY(-1px);
+}
+
+.shopys-tg-login-btn:active {
+    transform: translateY(0);
+}
+
+.shopys-tg-icon {
+    flex-shrink: 0;
+}
+
+/* ── Logged-in User Area ────────────────────────────────────── */
+.shopys-tg-user {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+}
+
+.shopys-tg-avatar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 1.5px solid rgba(0, 0, 0, 0.12);
+    border-radius: 50px;
+    padding: 4px 12px 4px 4px;
+    cursor: pointer;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    transition: border-color 0.2s, background 0.2s;
+    white-space: nowrap;
+}
+
+.shopys-tg-avatar-btn:hover {
+    border-color: #229ED9;
+    background: rgba(34, 158, 217, 0.05);
+}
+
+/* Avatar image */
+.shopys-tg-avatar-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+/* Initials fallback avatar */
+.shopys-tg-avatar-initials {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #229ED9;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.shopys-tg-name {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.shopys-tg-chevron {
+    opacity: 0.5;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+
+.shopys-tg-avatar-btn[aria-expanded="true"] .shopys-tg-chevron {
+    transform: rotate(180deg);
+}
+
+/* ── Dropdown Menu ──────────────────────────────────────────── */
+.shopys-tg-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 160px;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    z-index: 9999;
+    animation: shopys-tg-fade-in 0.15s ease;
+}
+
+.shopys-tg-dropdown.shopys-tg-dd--open {
+    display: block;
+}
+
+@keyframes shopys-tg-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.shopys-tg-dd-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: #333;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.shopys-tg-dd-item:hover {
+    background: #f5f5f5;
+    text-decoration: none;
+    color: #111;
+}
+
+.shopys-tg-logout {
+    color: #e53e3e;
+    border-top: 1px solid #f0f0f0;
+}
+
+.shopys-tg-logout:hover {
+    background: #fff5f5;
+    color: #c53030;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .shopys-tg-name {
+        display: none;
+    }
+
+    .shopys-tg-avatar-btn {
+        padding: 4px;
+        border-radius: 50%;
+    }
+
+    .shopys-tg-chevron {
+        display: none;
+    }
+
+    .shopys-tg-login-btn span {
+        display: none;
+    }
+
+    .shopys-tg-login-btn {
+        padding: 7px 10px;
+        border-radius: 50%;
+    }
+}

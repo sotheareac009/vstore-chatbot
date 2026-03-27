@@ -1,0 +1,42 @@
+/* ============================================================
+   Cart Invoice — Print Button
+   ============================================================ */
+
+.shopys-print-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 13px 20px;
+    margin-bottom: 10px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: #1a1a1a;
+    background: #fff;
+    border: 1.5px solid #d0d0d0;
+    border-radius: 8px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s, color 0.18s, box-shadow 0.18s;
+    box-sizing: border-box;
+}
+
+.shopys-print-btn:hover {
+    border-color: #1a1a1a;
+    background: #1a1a1a;
+    color: #fff;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.shopys-print-btn svg {
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+.shopys-print-btn:hover svg {
+    transform: scale(1.1);
+}
