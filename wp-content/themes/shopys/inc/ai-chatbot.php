@@ -1194,17 +1194,33 @@ function shopys_ai_chatbot_assets() {
     if ( ! class_exists( 'WooCommerce' ) ) return;
     if ( is_admin() ) return;
 
+    // Highlight.js for code syntax highlighting
+    wp_enqueue_style(
+        'highlightjs-css',
+        'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css',
+        array(),
+        '11.9.0'
+    );
+
+    wp_enqueue_script(
+        'highlightjs',
+        'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js',
+        array(),
+        '11.9.0',
+        true
+    );
+
     wp_enqueue_style(
         'shopys-ai-chatbot',
         get_stylesheet_directory_uri() . '/css/ai-chatbot.css',
-        array(),
+        array( 'highlightjs-css' ),
         filemtime( get_stylesheet_directory() . '/css/ai-chatbot.css' )
     );
 
     wp_enqueue_script(
         'shopys-ai-chatbot-js',
         get_stylesheet_directory_uri() . '/js/ai-chatbot.js',
-        array(),
+        array( 'highlightjs' ),
         filemtime( get_stylesheet_directory() . '/js/ai-chatbot.js' ),
         true
     );
