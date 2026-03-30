@@ -574,21 +574,45 @@ function shopys_ai_extract_product_info( $url, $content ) {
    ═══════════════════════════════════════════════════════════════════ */
 
 function shopys_ai_call_claude( $api_key, $system_prompt, $messages, $model = 'claude-haiku-4-5-20251001' ) {
+    // Check if message contains images or PDFs
+    $has_media = false;
+    $has_pdf = false;
+    foreach ( $messages as $msg ) {
+        if ( is_array( $msg['content'] ) ) {
+            foreach ( $msg['content'] as $part ) {
+                if ( isset( $part['type'] ) && $part['type'] === 'image' ) {
+                    $has_media = true;
+                }
+                if ( isset( $part['type'] ) && $part['type'] === 'document' ) {
+                    $has_media = true;
+                    $has_pdf = true;
+                }
+            }
+        }
+    }
+
     $body = array(
         'model'      => $model,
-        'max_tokens' => 1024,
+        'max_tokens' => $has_media ? 4096 : 1024,
         'system'     => $system_prompt,
         'messages'   => $messages,
     );
 
+    $headers = array(
+        'Content-Type'      => 'application/json',
+        'x-api-key'         => $api_key,
+        'anthropic-version' => '2023-06-01',
+    );
+
+    // PDF support requires beta header
+    if ( $has_pdf ) {
+        $headers['anthropic-beta'] = 'pdfs-2024-09-25';
+    }
+
     $response = wp_remote_post( 'https://api.anthropic.com/v1/messages', array(
-        'headers' => array(
-            'Content-Type'      => 'application/json',
-            'x-api-key'         => $api_key,
-            'anthropic-version' => '2023-06-01',
-        ),
+        'headers' => $headers,
         'body'    => wp_json_encode( $body ),
-        'timeout' => 30,
+        'timeout' => $has_media ? 60 : 30,
     ) );
 
     if ( is_wp_error( $response ) ) {
@@ -633,8 +657,12 @@ function shopys_ai_chat_handler() {
         $model = 'claude-haiku-4-5-20251001';
     }
 
-    if ( empty( $message ) ) {
-        wp_send_json_error( array( 'message' => 'Please type a message.' ) );
+    // Parse attachments (base64 images/files)
+    $raw_attachments = isset( $_POST['attachments'] ) ? wp_unslash( $_POST['attachments'] ) : '';
+    $file_attachments = ! empty( $raw_attachments ) ? json_decode( $raw_attachments, true ) : array();
+
+    if ( empty( $message ) && empty( $file_attachments ) ) {
+        wp_send_json_error( array( 'message' => 'Please type a message or attach a file.' ) );
     }
 
     // Get API key from WP options only (no hardcoded fallback)
@@ -1108,6 +1136,82 @@ ALWAYS:
         $messages[] = array( 'role' => 'user', 'content' => $message );
     }
 
+    // Inject image/PDF attachments into the last user message
+    if ( ! empty( $file_attachments ) && is_array( $file_attachments ) ) {
+        $last_idx = count( $messages ) - 1;
+        $last_msg = $messages[ $last_idx ];
+
+        // Detect special commands from the message
+        $user_text = is_string( $last_msg['content'] ) ? $last_msg['content'] : '';
+        $is_find_product = strpos( $user_text, '[FIND_PRODUCT]' ) !== false;
+        $is_read_text    = strpos( $user_text, '[READ_TEXT]' ) !== false;
+        $is_summarize    = strpos( $user_text, '[SUMMARIZE]' ) !== false;
+
+        // Strip command tags from user text
+        $clean_text = trim( preg_replace( '/\[(FIND_PRODUCT|READ_TEXT|SUMMARIZE)\]\s*/', '', $user_text ) );
+
+        // Build smart prompt based on command
+        if ( $is_find_product ) {
+            $prompt_text = "Look at this image carefully. Identify the product, item, or object shown. "
+                . "Then search the STORE PRODUCTS list and recommend the closest matching or most similar products. "
+                . "Describe what you see first, then recommend products. Always include the [[PRODUCTS:id1,id2,...]] tag.";
+            if ( ! empty( $clean_text ) ) {
+                $prompt_text .= "\n\nUser note: " . $clean_text;
+            }
+        } elseif ( $is_read_text ) {
+            $prompt_text = "Extract and read ALL text content from this image/document. "
+                . "Present the text clearly and in the original order. If it's a receipt, invoice, or document, format it neatly.";
+            if ( ! empty( $clean_text ) ) {
+                $prompt_text .= "\n\nUser note: " . $clean_text;
+            }
+        } elseif ( $is_summarize ) {
+            $prompt_text = "Provide a detailed summary of this image/document. "
+                . "Include key points, main topics, important details, and any actionable information.";
+            if ( ! empty( $clean_text ) ) {
+                $prompt_text .= "\n\nUser note: " . $clean_text;
+            }
+        } elseif ( ! empty( $clean_text ) ) {
+            $prompt_text = $clean_text;
+        } else {
+            $prompt_text = 'Please analyze this image and describe what you see. If it looks like a product, recommend similar items from the store.';
+        }
+
+        // Convert to multi-part array for Claude vision API
+        $content_parts = array();
+
+        // Add image blocks
+        $allowed_image_types = array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp' );
+        foreach ( array_slice( $file_attachments, 0, 5 ) as $att ) {
+            if ( ! isset( $att['type'], $att['data'] ) ) continue;
+            if ( in_array( $att['type'], $allowed_image_types, true ) ) {
+                $content_parts[] = array(
+                    'type'   => 'image',
+                    'source' => array(
+                        'type'         => 'base64',
+                        'media_type'   => $att['type'],
+                        'data'         => $att['data'],
+                    ),
+                );
+            } elseif ( $att['type'] === 'application/pdf' ) {
+                $content_parts[] = array(
+                    'type'   => 'document',
+                    'source' => array(
+                        'type'         => 'base64',
+                        'media_type'   => 'application/pdf',
+                        'data'         => $att['data'],
+                    ),
+                );
+            }
+        }
+
+        // Add text prompt after media
+        $content_parts[] = array( 'type' => 'text', 'text' => $prompt_text );
+
+        if ( ! empty( $content_parts ) ) {
+            $messages[ $last_idx ]['content'] = $content_parts;
+        }
+    }
+
     $result = shopys_ai_call_claude( $api_key, $system_prompt, $messages, $model );
 
     if ( is_wp_error( $result ) ) {
@@ -1309,8 +1413,17 @@ function shopys_ai_chatbot_widget() {
                 </select>
             </div>
 
+            <!-- Attachment Preview -->
+            <div class="sai-attach-preview" id="sai-attach-preview"></div>
+
             <!-- Input Area -->
             <div class="sai-input-area">
+                <input type="file" id="sai-file-input" accept="image/*,.pdf" multiple style="display:none" />
+                <button class="sai-attach-btn" id="sai-attach-btn" aria-label="Attach file" title="Attach image or PDF">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                </button>
                 <textarea class="sai-input" id="sai-input" placeholder="Ask about products, recommendations..." rows="1"></textarea>
                 <button class="sai-send" id="sai-send" aria-label="Send message">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

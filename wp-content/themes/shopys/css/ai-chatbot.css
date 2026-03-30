@@ -78,6 +78,15 @@
     transform: translateY(0) scale(1);
 }
 
+.sai-window.sai-dragover {
+    outline: 3px dashed var(--sai-primary);
+    outline-offset: -3px;
+}
+
+.sai-window.sai-dragover .sai-messages {
+    opacity: 0.5;
+}
+
 /* ── Header ──────────────────────────────────────────────────────── */
 .sai-header {
     display: flex;
@@ -670,6 +679,156 @@
 .sai-model-select:focus,
 .sai-model-select:hover {
     border-color: var(--sai-primary);
+}
+
+/* ── Attachment Preview ─────────────────────────────────────────── */
+.sai-attach-preview {
+    display: none;
+    flex-shrink: 0;
+    background: var(--sai-white);
+    border-top: 1px solid var(--sai-border);
+}
+
+.sai-attach-preview.sai-has-files {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 14px;
+}
+
+.sai-attach-thumbs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.sai-quick-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.sai-quick-btn {
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    border: 1px solid rgba(0, 196, 79, 0.3);
+    border-radius: 16px;
+    background: rgba(0, 196, 79, 0.06);
+    color: var(--sai-primary-dk);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.sai-quick-btn:hover {
+    background: var(--sai-primary);
+    color: #fff;
+    border-color: var(--sai-primary);
+}
+
+.sai-attach-item {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid var(--sai-border);
+    flex-shrink: 0;
+    background: var(--sai-bg);
+}
+
+.sai-attach-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sai-attach-item .sai-attach-file-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    font-size: 22px;
+}
+
+.sai-attach-item .sai-attach-name {
+    display: block;
+    font-size: 8px;
+    text-align: center;
+    padding: 0 4px;
+    color: var(--sai-text-light);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.sai-attach-remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.sai-attach-remove:hover {
+    background: #dc2626;
+}
+
+/* ── Attachment Button ─────────────────────────────────────────── */
+.sai-attach-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--sai-text-light);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.2s, background 0.2s;
+}
+
+.sai-attach-btn:hover {
+    color: var(--sai-primary);
+    background: rgba(0, 196, 79, 0.08);
+}
+
+/* ── User Attachment Thumbnails ────────────────────────────────── */
+.sai-user-attachments {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+}
+
+.sai-user-attach-img {
+    width: 120px;
+    max-height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.sai-user-attach-file {
+    font-size: 11px;
+    padding: 4px 8px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
 }
 
 /* ── Input Area ──────────────────────────────────────────────────── */

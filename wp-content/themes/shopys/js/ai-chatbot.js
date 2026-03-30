@@ -5,8 +5,9 @@
 (function () {
     'use strict';
 
-    var cfg, toggle, chatWindow, messagesEl, inputEl, sendBtn, headerName, closeBtn, fullscreenBtn, newChatBtn, modelSelect;
+    var cfg, toggle, chatWindow, messagesEl, inputEl, sendBtn, headerName, closeBtn, fullscreenBtn, newChatBtn, modelSelect, attachBtn, fileInput, attachPreview;
     var history = [];
+    var attachments = []; // { name, type, data (base64), previewUrl }
     var isOpen = false;
     var isSending = false;
     var isFullscreen = false;
@@ -27,6 +28,9 @@
         fullscreenBtn = document.getElementById('sai-fullscreen');
         newChatBtn    = document.getElementById('sai-new-chat');
         modelSelect   = document.getElementById('sai-model-select');
+        attachBtn     = document.getElementById('sai-attach-btn');
+        fileInput     = document.getElementById('sai-file-input');
+        attachPreview = document.getElementById('sai-attach-preview');
 
         if (!toggle || !chatWindow) return;
 
@@ -38,6 +42,8 @@
         fullscreenBtn.addEventListener('click', toggleFullscreen);
         newChatBtn.addEventListener('click', newChat);
         sendBtn.addEventListener('click', sendMessage);
+        attachBtn.addEventListener('click', function () { fileInput.click(); });
+        fileInput.addEventListener('change', handleFileSelect);
 
         inputEl.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -51,11 +57,29 @@
             this.style.height = 'auto';
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
         });
+
+        // Drag & drop files onto chat window
+        chatWindow.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            chatWindow.classList.add('sai-dragover');
+        });
+        chatWindow.addEventListener('dragleave', function (e) {
+            e.preventDefault();
+            chatWindow.classList.remove('sai-dragover');
+        });
+        chatWindow.addEventListener('drop', function (e) {
+            e.preventDefault();
+            chatWindow.classList.remove('sai-dragover');
+            if (e.dataTransfer && e.dataTransfer.files.length) {
+                handleDroppedFiles(e.dataTransfer.files);
+            }
+        });
     }
 
     function newChat() {
         history = [];
         messagesEl.innerHTML = '';
+        clearAttachments();
         showWelcome();
         inputEl.focus();
     }
@@ -94,15 +118,20 @@
     function sendMessage() {
         if (isSending) return;
         var text = inputEl.value.trim();
-        if (!text) return;
+        var hasFiles = attachments.length > 0;
+        if (!text && !hasFiles) return;
 
-        // Show user message
-        appendUser(text);
+        // Show user message with attachment thumbnails
+        appendUser(text, attachments.slice());
         inputEl.value = '';
         inputEl.style.height = 'auto';
 
         // Add to history
-        history.push({ role: 'user', text: text });
+        history.push({ role: 'user', text: text || '(attached file)' });
+
+        // Grab current attachments and clear
+        var filesToSend = attachments.slice();
+        clearAttachments();
 
         // Show typing indicator
         var typingId = showTyping();
@@ -117,6 +146,19 @@
         formData.append('history', JSON.stringify(history.slice(-10)));
         formData.append('model', modelSelect ? modelSelect.value : 'claude-haiku-4-5-20251001');
         formData.append('page_url', window.location.href);
+
+        // Attach files as base64 JSON
+        if (filesToSend.length > 0) {
+            var fileData = [];
+            for (var f = 0; f < filesToSend.length; f++) {
+                fileData.push({
+                    name: filesToSend[f].name,
+                    type: filesToSend[f].type,
+                    data: filesToSend[f].data
+                });
+            }
+            formData.append('attachments', JSON.stringify(fileData));
+        }
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', cfg.ajax_url, true);
@@ -156,12 +198,151 @@
         xhr.send(formData);
     }
 
+    /* ── Attachment Handling ──────────────────────────── */
+
+    function handleDroppedFiles(files) {
+        var allowed = /^(image\/(jpeg|png|gif|webp)|application\/pdf)$/;
+        for (var i = 0; i < files.length; i++) {
+            if (allowed.test(files[i].type)) {
+                processFile(files[i]);
+            }
+        }
+    }
+
+    function handleFileSelect(e) {
+        var files = e.target.files;
+        if (!files || !files.length) return;
+
+        for (var i = 0; i < files.length; i++) {
+            processFile(files[i]);
+        }
+
+        // Reset so same file can be re-selected
+        fileInput.value = '';
+    }
+
+    function processFile(file) {
+        // Max 5MB per file
+        if (file.size > 5 * 1024 * 1024) {
+            alert(file.name + ' is too large. Max 5MB.');
+            return;
+        }
+
+        var reader = new FileReader();
+        reader.onload = function (ev) {
+            var base64 = ev.target.result.split(',')[1];
+            attachments.push({
+                name: file.name,
+                type: file.type,
+                data: base64,
+                previewUrl: ev.target.result
+            });
+            renderAttachPreview();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function renderAttachPreview() {
+        if (!attachments.length) {
+            attachPreview.innerHTML = '';
+            attachPreview.classList.remove('sai-has-files');
+            return;
+        }
+
+        var html = '<div class="sai-attach-thumbs">';
+        for (var i = 0; i < attachments.length; i++) {
+            var a = attachments[i];
+            var isImage = /^image\//.test(a.type);
+            html += '<div class="sai-attach-item" data-index="' + i + '">';
+            if (isImage) {
+                html += '<img src="' + a.previewUrl + '" alt="' + escAttr(a.name) + '" />';
+            } else {
+                html += '<div class="sai-attach-file-icon">&#128196;</div>';
+                html += '<span class="sai-attach-name">' + escHtml(a.name) + '</span>';
+            }
+            html += '<button class="sai-attach-remove" data-index="' + i + '" title="Remove">&times;</button>';
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // Quick action buttons
+        var hasImage = attachments.some(function (a) { return /^image\//.test(a.type); });
+        var hasPdf = attachments.some(function (a) { return a.type === 'application/pdf'; });
+
+        html += '<div class="sai-quick-actions">';
+        if (hasImage) {
+            html += '<button class="sai-quick-btn" data-cmd="find_product">&#x1F50D; Find Product</button>';
+            html += '<button class="sai-quick-btn" data-cmd="read_image">&#x1F4D6; Read Text</button>';
+            html += '<button class="sai-quick-btn" data-cmd="summarize_image">&#x2728; Summarize</button>';
+        }
+        if (hasPdf) {
+            html += '<button class="sai-quick-btn" data-cmd="summarize_pdf">&#x1F4C4; Summarize PDF</button>';
+            html += '<button class="sai-quick-btn" data-cmd="read_pdf">&#x1F4D6; Read PDF</button>';
+        }
+        html += '</div>';
+
+        attachPreview.innerHTML = html;
+        attachPreview.classList.add('sai-has-files');
+
+        // Bind remove buttons
+        var removeBtns = attachPreview.querySelectorAll('.sai-attach-remove');
+        for (var r = 0; r < removeBtns.length; r++) {
+            removeBtns[r].addEventListener('click', function () {
+                var idx = parseInt(this.getAttribute('data-index'), 10);
+                attachments.splice(idx, 1);
+                renderAttachPreview();
+            });
+        }
+
+        // Bind quick action buttons
+        var quickBtns = attachPreview.querySelectorAll('.sai-quick-btn');
+        for (var q = 0; q < quickBtns.length; q++) {
+            quickBtns[q].addEventListener('click', function () {
+                var cmd = this.getAttribute('data-cmd');
+                inputEl.value = getCommandText(cmd);
+                sendMessage();
+            });
+        }
+    }
+
+    function getCommandText(cmd) {
+        switch (cmd) {
+            case 'find_product':  return '[FIND_PRODUCT] Find matching or similar products from the store based on this image.';
+            case 'read_image':    return '[READ_TEXT] Read and extract all text from this image.';
+            case 'summarize_image': return '[SUMMARIZE] Describe and summarize what is in this image.';
+            case 'summarize_pdf': return '[SUMMARIZE] Summarize the key points of this PDF document.';
+            case 'read_pdf':      return '[READ_TEXT] Read and extract the content of this PDF.';
+            default:              return '';
+        }
+    }
+
+    function clearAttachments() {
+        attachments = [];
+        renderAttachPreview();
+    }
+
     /* ── Message Rendering ────────────────────────────── */
 
-    function appendUser(text) {
+    function appendUser(text, files) {
         var div = document.createElement('div');
         div.className = 'sai-msg sai-msg-user';
-        div.innerHTML = '<div class="sai-bubble sai-bubble-user">' + escHtml(text) + '</div>';
+
+        var inner = '';
+        // Show attachment thumbnails in user bubble
+        if (files && files.length) {
+            inner += '<div class="sai-user-attachments">';
+            for (var i = 0; i < files.length; i++) {
+                if (/^image\//.test(files[i].type)) {
+                    inner += '<img class="sai-user-attach-img" src="' + files[i].previewUrl + '" alt="' + escAttr(files[i].name) + '" />';
+                } else {
+                    inner += '<div class="sai-user-attach-file">&#128196; ' + escHtml(files[i].name) + '</div>';
+                }
+            }
+            inner += '</div>';
+        }
+        if (text) inner += escHtml(text);
+
+        div.innerHTML = '<div class="sai-bubble sai-bubble-user">' + inner + '</div>';
         messagesEl.appendChild(div);
         scrollBottom();
     }
