@@ -646,6 +646,9 @@ body article .entry-content .ppg-title-link:active,
     .ppg-title {
         font-size: 11px;
         margin: 0 0 4px 0;
+        -webkit-line-clamp: unset;
+        display: block;
+        overflow: visible;
     }
 
     .ppg-price-sale,
@@ -889,14 +892,30 @@ body article .entry-content .ppg-title-link:active,
         height: 36px;
     }
 
+    .ppg-lt-meta {
+        max-width: 200px;
+    }
+
+    .ppg-lt-col-product {
+        width: 200px;
+        min-width: 200px;
+    }
+
     .ppg-lt-name {
-        max-width: 160px;
+        max-width: 200px;
         font-size: 12px;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+    }
+
+    .ppg-lt-sku {
+        display: none;
     }
 
     .ppg-list-table thead th,
     .ppg-list-table tbody td {
-        padding: 7px 10px;
+        padding: 7px 6px;
     }
 }
 /* =====================================================

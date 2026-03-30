@@ -74,6 +74,60 @@
                 handleDroppedFiles(e.dataTransfer.files);
             }
         });
+
+        // Resize handles
+        initResize();
+    }
+
+    /* ── Resize ───────────────────────────────────────── */
+
+    function initResize() {
+        var handles = chatWindow.querySelectorAll('.sai-resize-handle');
+        for (var i = 0; i < handles.length; i++) {
+            handles[i].addEventListener('mousedown', startResize);
+            handles[i].addEventListener('touchstart', startResize, { passive: false });
+        }
+    }
+
+    function startResize(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        var dir = this.getAttribute('data-resize');
+        var startX = e.clientX || (e.touches && e.touches[0].clientX);
+        var startY = e.clientY || (e.touches && e.touches[0].clientY);
+        var startW = chatWindow.offsetWidth;
+        var startH = chatWindow.offsetHeight;
+        chatWindow.classList.add('sai-resizing');
+
+        function onMove(ev) {
+            var cx = ev.clientX || (ev.touches && ev.touches[0].clientX);
+            var cy = ev.clientY || (ev.touches && ev.touches[0].clientY);
+            var dx = startX - cx;
+            var dy = startY - cy;
+
+            if (dir === 'left' || dir === 'corner') {
+                var newW = Math.max(300, Math.min(startW + dx, window.innerWidth - 32));
+                chatWindow.style.width = newW + 'px';
+            }
+            if (dir === 'top' || dir === 'corner') {
+                var newH = Math.max(350, Math.min(startH + dy, window.innerHeight - 140));
+                chatWindow.style.height = newH + 'px';
+            }
+        }
+
+        function onEnd() {
+            chatWindow.classList.remove('sai-resizing');
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onEnd);
+            document.removeEventListener('touchmove', onMove);
+            document.removeEventListener('touchend', onEnd);
+        }
+
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onEnd);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onEnd);
     }
 
     function newChat() {
@@ -144,7 +198,7 @@
         formData.append('nonce', cfg.nonce);
         formData.append('message', text);
         formData.append('history', JSON.stringify(history.slice(-10)));
-        formData.append('model', modelSelect ? modelSelect.value : 'claude-haiku-4-5-20251001');
+        formData.append('model', modelSelect ? modelSelect.value : 'claude-opus-4-6');
         formData.append('page_url', window.location.href);
 
         // Attach files as base64 JSON

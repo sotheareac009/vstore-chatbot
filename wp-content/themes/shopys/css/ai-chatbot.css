@@ -20,7 +20,7 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    z-index: 99999;
+    z-index: 2147483647;
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -55,10 +55,12 @@
     position: fixed;
     bottom: 100px;
     right: 24px;
-    z-index: 99998;
+    z-index: 2147483646;
     width: 400px;
+    min-width: 300px;
     max-width: calc(100vw - 32px);
     height: 560px;
+    min-height: 350px;
     max-height: calc(100vh - 140px);
     background: var(--sai-white);
     border-radius: var(--sai-radius);
@@ -70,6 +72,41 @@
     visibility: hidden;
     transform: translateY(20px) scale(0.95);
     transition: opacity 0.3s, transform 0.3s, visibility 0.3s;
+}
+
+/* ── Resize Handles ─────────────────────────────────────────────── */
+.sai-resize-handle {
+    position: absolute;
+    z-index: 10;
+}
+
+.sai-resize-handle-top {
+    top: -4px;
+    left: 14px;
+    right: 14px;
+    height: 8px;
+    cursor: n-resize;
+}
+
+.sai-resize-handle-left {
+    top: 14px;
+    left: -4px;
+    bottom: 14px;
+    width: 8px;
+    cursor: w-resize;
+}
+
+.sai-resize-handle-corner {
+    top: -6px;
+    left: -6px;
+    width: 16px;
+    height: 16px;
+    cursor: nw-resize;
+}
+
+.sai-window.sai-resizing {
+    transition: none;
+    user-select: none;
 }
 
 .sai-window.sai-open {
