@@ -236,6 +236,9 @@ if ( class_exists( 'WooCommerce' ) ) {
     require_once get_stylesheet_directory() . '/inc/cart-invoice.php';
 }
 
+// Telegram Login — defines bot constants needed by AI Chatbot
+require_once get_stylesheet_directory() . '/inc/telegram-login.php';
+
 // AI Chatbot — always loads so the Settings page is always available
 require_once get_stylesheet_directory() . '/inc/ai-chatbot.php';
 

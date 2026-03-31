@@ -7,6 +7,165 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /* ═══════════════════════════════════════════════════════════════════
+   0. TELEGRAM CHATBOT USERS TABLE & AUTH
+   ═══════════════════════════════════════════════════════════════════ */
+
+/**
+ * Create the chatbot_telegram_users table on theme activation.
+ */
+add_action( 'after_switch_theme', 'shopys_ai_create_tg_table' );
+add_action( 'admin_init', 'shopys_ai_maybe_create_tg_table' );
+
+function shopys_ai_maybe_create_tg_table() {
+    if ( get_option( 'shopys_ai_tg_table_version' ) !== '1.0' ) {
+        shopys_ai_create_tg_table();
+    }
+}
+
+function shopys_ai_create_tg_table() {
+    global $wpdb;
+    $table   = $wpdb->prefix . 'chatbot_telegram_users';
+    $charset = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE IF NOT EXISTS {$table} (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        telegram_id BIGINT UNSIGNED NOT NULL,
+        first_name VARCHAR(255) DEFAULT '',
+        last_name VARCHAR(255) DEFAULT '',
+        username VARCHAR(255) DEFAULT '',
+        photo_url TEXT DEFAULT '',
+        auth_date INT UNSIGNED DEFAULT 0,
+        logged_in_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
+        session_count INT UNSIGNED DEFAULT 1,
+        message_count INT UNSIGNED DEFAULT 0,
+        PRIMARY KEY (id),
+        UNIQUE KEY tg_id (telegram_id),
+        KEY last_active_idx (last_active)
+    ) {$charset};";
+
+    require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+    dbDelta( $sql );
+    update_option( 'shopys_ai_tg_table_version', '1.0' );
+}
+
+/**
+ * AJAX: Verify Telegram auth data, log user to DB, set session cookie.
+ */
+add_action( 'wp_ajax_shopys_ai_tg_auth',        'shopys_ai_tg_auth_handler' );
+add_action( 'wp_ajax_nopriv_shopys_ai_tg_auth', 'shopys_ai_tg_auth_handler' );
+
+function shopys_ai_tg_auth_handler() {
+    check_ajax_referer( 'shopys_ai_nonce', 'nonce' );
+
+    $raw = isset( $_POST['tg_data'] ) ? json_decode( wp_unslash( $_POST['tg_data'] ), true ) : null;
+    if ( empty( $raw ) || empty( $raw['id'] ) || empty( $raw['hash'] ) ) {
+        wp_send_json_error( array( 'message' => 'Invalid Telegram data.' ) );
+    }
+
+    // Verify hash using bot token
+    $bot_token = defined( 'SHOPYS_TG_BOT_TOKEN' ) ? SHOPYS_TG_BOT_TOKEN : '';
+    if ( empty( $bot_token ) ) {
+        wp_send_json_error( array( 'message' => 'Telegram bot not configured.' ) );
+    }
+
+    $hash = $raw['hash'];
+    $check = $raw;
+    unset( $check['hash'] );
+    ksort( $check );
+    $check_string = implode( "\n", array_map(
+        fn( $k, $v ) => "{$k}={$v}",
+        array_keys( $check ),
+        $check
+    ) );
+    $secret        = hash( 'sha256', $bot_token, true );
+    $expected_hash = hash_hmac( 'sha256', $check_string, $secret );
+
+    if ( ! hash_equals( $expected_hash, $hash ) ) {
+        wp_send_json_error( array( 'message' => 'Telegram verification failed.' ) );
+    }
+
+    // Check freshness (max 1 day)
+    if ( isset( $raw['auth_date'] ) && ( time() - intval( $raw['auth_date'] ) ) > 86400 ) {
+        wp_send_json_error( array( 'message' => 'Authentication expired. Please try again.' ) );
+    }
+
+    $tg_id     = intval( $raw['id'] );
+    $firstname = sanitize_text_field( $raw['first_name'] ?? '' );
+    $lastname  = sanitize_text_field( $raw['last_name'] ?? '' );
+    $username  = sanitize_text_field( $raw['username'] ?? '' );
+    $photo     = esc_url_raw( $raw['photo_url'] ?? '' );
+    $auth_date = intval( $raw['auth_date'] ?? time() );
+
+    // Upsert into DB
+    global $wpdb;
+    $table = $wpdb->prefix . 'chatbot_telegram_users';
+
+    $exists = $wpdb->get_var( $wpdb->prepare(
+        "SELECT id FROM {$table} WHERE telegram_id = %d", $tg_id
+    ) );
+
+    if ( $exists ) {
+        $wpdb->update( $table, array(
+            'first_name'    => $firstname,
+            'last_name'     => $lastname,
+            'username'      => $username,
+            'photo_url'     => $photo,
+            'auth_date'     => $auth_date,
+            'last_active'   => current_time( 'mysql' ),
+            'session_count' => $wpdb->get_var( $wpdb->prepare(
+                "SELECT session_count FROM {$table} WHERE telegram_id = %d", $tg_id
+            ) ) + 1,
+        ), array( 'telegram_id' => $tg_id ), array( '%s','%s','%s','%s','%d','%s','%d' ), array( '%d' ) );
+    } else {
+        $wpdb->insert( $table, array(
+            'telegram_id'   => $tg_id,
+            'first_name'    => $firstname,
+            'last_name'     => $lastname,
+            'username'      => $username,
+            'photo_url'     => $photo,
+            'auth_date'     => $auth_date,
+            'logged_in_at'  => current_time( 'mysql' ),
+            'last_active'   => current_time( 'mysql' ),
+            'session_count' => 1,
+            'message_count' => 0,
+        ) );
+    }
+
+    // Generate a session token (HMAC of tg_id + secret)
+    $session_token = hash_hmac( 'sha256', $tg_id . '|' . $auth_date, $bot_token );
+
+    wp_send_json_success( array(
+        'telegram_id' => $tg_id,
+        'first_name'  => $firstname,
+        'photo_url'   => $photo,
+        'session'     => $session_token,
+    ) );
+}
+
+/**
+ * Verify a chatbot session token.
+ */
+function shopys_ai_verify_tg_session( $tg_id, $auth_date, $session_token ) {
+    $bot_token = defined( 'SHOPYS_TG_BOT_TOKEN' ) ? SHOPYS_TG_BOT_TOKEN : '';
+    if ( empty( $bot_token ) ) return false;
+    $expected = hash_hmac( 'sha256', $tg_id . '|' . $auth_date, $bot_token );
+    return hash_equals( $expected, $session_token );
+}
+
+/**
+ * Increment message count for a Telegram user.
+ */
+function shopys_ai_tg_increment_messages( $tg_id ) {
+    global $wpdb;
+    $table = $wpdb->prefix . 'chatbot_telegram_users';
+    $wpdb->query( $wpdb->prepare(
+        "UPDATE {$table} SET message_count = message_count + 1, last_active = %s WHERE telegram_id = %d",
+        current_time( 'mysql' ), $tg_id
+    ) );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    1. ADMIN SETTINGS PAGE
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -34,6 +193,9 @@ function shopys_ai_register_settings() {
     register_setting( 'shopys_ai_settings', 'shopys_ai_pdf_reading',       'sanitize_text_field' );
     register_setting( 'shopys_ai_settings', 'shopys_ai_link_comparison',   'sanitize_text_field' );
     register_setting( 'shopys_ai_settings', 'shopys_ai_attachments',       'sanitize_text_field' );
+
+    // Telegram login requirement
+    register_setting( 'shopys_ai_settings', 'shopys_ai_require_tg_login',  'sanitize_text_field' );
 }
 
 function shopys_ai_settings_page() {
@@ -48,6 +210,7 @@ function shopys_ai_settings_page() {
     $pdf_reading     = get_option( 'shopys_ai_pdf_reading', '1' );
     $link_comparison = get_option( 'shopys_ai_link_comparison', '1' );
     $attachments_on  = get_option( 'shopys_ai_attachments', '1' );
+    $require_tg      = get_option( 'shopys_ai_require_tg_login', '1' );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'AI Chatbot Settings', 'shopys' ); ?></h1>
@@ -103,6 +266,16 @@ function shopys_ai_settings_page() {
             <p style="font-size:13px;color:#666;">Enable or disable specific chatbot capabilities.</p>
             <table class="form-table">
                 <tr>
+                    <th scope="row"><?php esc_html_e( 'Require Telegram Login', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_require_tg_login" id="shopys_ai_require_tg_login">
+                            <option value="1" <?php selected( $require_tg, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $require_tg, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">Users must login with Telegram before chatting. All Telegram users are logged in the database.</p>
+                    </td>
+                </tr>
+                <tr>
                     <th scope="row"><?php esc_html_e( 'Product-Only Mode', 'shopys' ); ?></th>
                     <td>
                         <select name="shopys_ai_product_only" id="shopys_ai_product_only">
@@ -155,6 +328,45 @@ function shopys_ai_settings_page() {
             </table>
             <?php submit_button(); ?>
         </form>
+
+        <?php
+        // ── Telegram Chatbot Users Table ──
+        global $wpdb;
+        $tg_table = $wpdb->prefix . 'chatbot_telegram_users';
+        $tg_users = $wpdb->get_results( "SELECT * FROM {$tg_table} ORDER BY last_active DESC LIMIT 50", ARRAY_A );
+        if ( $tg_users ) :
+        ?>
+        <h2 style="margin-top:40px;">Telegram Chatbot Users</h2>
+        <p style="font-size:13px;color:#666;">Users who logged in via Telegram to use the chatbot (latest 50).</p>
+        <table class="widefat striped" style="max-width:900px;">
+            <thead>
+                <tr>
+                    <th>Telegram ID</th>
+                    <th>Name</th>
+                    <th>Username</th>
+                    <th>Photo</th>
+                    <th>First Login</th>
+                    <th>Last Active</th>
+                    <th>Sessions</th>
+                    <th>Messages</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ( $tg_users as $tu ) : ?>
+                <tr>
+                    <td><code><?php echo esc_html( $tu['telegram_id'] ); ?></code></td>
+                    <td><?php echo esc_html( trim( $tu['first_name'] . ' ' . $tu['last_name'] ) ); ?></td>
+                    <td><?php echo $tu['username'] ? '<a href="https://t.me/' . esc_attr( $tu['username'] ) . '" target="_blank">@' . esc_html( $tu['username'] ) . '</a>' : '—'; ?></td>
+                    <td><?php echo $tu['photo_url'] ? '<img src="' . esc_url( $tu['photo_url'] ) . '" width="28" height="28" style="border-radius:50%;" />' : '—'; ?></td>
+                    <td><?php echo esc_html( $tu['logged_in_at'] ); ?></td>
+                    <td><?php echo esc_html( $tu['last_active'] ); ?></td>
+                    <td><?php echo intval( $tu['session_count'] ); ?></td>
+                    <td><?php echo intval( $tu['message_count'] ); ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
     </div>
     <?php
 }
@@ -712,6 +924,20 @@ add_action( 'wp_ajax_nopriv_shopys_ai_chat', 'shopys_ai_chat_handler' );
 
 function shopys_ai_chat_handler() {
     check_ajax_referer( 'shopys_ai_nonce', 'nonce' );
+
+    // Enforce Telegram login if required
+    if ( get_option( 'shopys_ai_require_tg_login', '1' ) === '1' ) {
+        $tg_id       = isset( $_POST['tg_id'] ) ? intval( $_POST['tg_id'] ) : 0;
+        $tg_auth     = isset( $_POST['tg_auth_date'] ) ? intval( $_POST['tg_auth_date'] ) : 0;
+        $tg_session  = isset( $_POST['tg_session'] ) ? sanitize_text_field( wp_unslash( $_POST['tg_session'] ) ) : '';
+
+        if ( empty( $tg_id ) || empty( $tg_session ) || ! shopys_ai_verify_tg_session( $tg_id, $tg_auth, $tg_session ) ) {
+            wp_send_json_error( array( 'message' => 'Please login with Telegram to use the chatbot.', 'require_login' => true ) );
+        }
+
+        // Track message count
+        shopys_ai_tg_increment_messages( $tg_id );
+    }
 
     $message = isset( $_POST['message'] ) ? sanitize_text_field( wp_unslash( $_POST['message'] ) ) : '';
     $history = isset( $_POST['history'] ) ? json_decode( wp_unslash( $_POST['history'] ), true ) : array();
@@ -1993,6 +2219,9 @@ function shopys_ai_chatbot_assets() {
     $bot_name    = get_option( 'shopys_ai_bot_name', 'Shopping Assistant' );
     $welcome_msg = get_option( 'shopys_ai_welcome_msg', "Hi! I'm your shopping assistant.\nAsk me anything — I can recommend products based on your needs!" );
 
+    $require_tg = get_option( 'shopys_ai_require_tg_login', '1' );
+    $tg_bot     = defined( 'SHOPYS_TG_BOT_USERNAME' ) ? SHOPYS_TG_BOT_USERNAME : '';
+
     wp_localize_script( 'shopys-ai-chatbot-js', 'shopysAI', array(
         'ajax_url'        => admin_url( 'admin-ajax.php' ),
         'nonce'           => wp_create_nonce( 'shopys_ai_nonce' ),
@@ -2003,6 +2232,8 @@ function shopys_ai_chatbot_assets() {
         'feat_pdf_reading'     => get_option( 'shopys_ai_pdf_reading', '1' ),
         'feat_link_comparison' => get_option( 'shopys_ai_link_comparison', '1' ),
         'feat_attachments'     => get_option( 'shopys_ai_attachments', '1' ),
+        'require_tg_login'    => $require_tg,
+        'tg_bot_username'     => $tg_bot,
     ) );
 }
 
@@ -2066,6 +2297,20 @@ function shopys_ai_chatbot_widget() {
                             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                     </button>
+                </div>
+            </div>
+
+            <!-- Telegram Login Gate -->
+            <div class="sai-tg-login-gate" id="sai-tg-login-gate" style="display:none;">
+                <div class="sai-tg-login-content">
+                    <div class="sai-tg-login-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="#229ED9">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.954l11.57-4.461c.537-.194 1.006.131.833.942z"/>
+                        </svg>
+                    </div>
+                    <h3 class="sai-tg-login-title">Login to Chat</h3>
+                    <p class="sai-tg-login-desc">Please login with your Telegram account to start chatting with our assistant.</p>
+                    <div class="sai-tg-login-widget" id="sai-tg-login-widget"></div>
                 </div>
             </div>
 

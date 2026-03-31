@@ -4,10 +4,12 @@
 
 /* ── Login Button (logged-out) ──────────────────────────────── */
 .shopys-tg-login-wrap {
-    position: relative;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 999999;
     display: inline-flex;
     align-items: center;
-    margin-left: 10px;
 }
 
 .shopys-tg-login-btn {
@@ -15,9 +17,10 @@
     align-items: center;
     gap: 7px;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 0.8rem;
+    font-size: 13px;
     font-weight: 600;
     color: #fff;
+    text-decoration: none;
     background: #229ED9;
     /* Telegram blue */
     border: none;
@@ -40,16 +43,74 @@
     transform: translateY(0);
 }
 
+.shopys-tg-login-btn .shopys-tg-chevron {
+    opacity: 0.7;
+    transition: transform 0.25s ease;
+}
+
+.shopys-tg-login-btn[aria-expanded="true"] .shopys-tg-chevron {
+    transform: rotate(180deg);
+}
+
 .shopys-tg-icon {
     flex-shrink: 0;
 }
 
+/* ── Login Dropdown (logged-out) ──────────────────────────────── */
+.shopys-tg-login-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 270px;
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(0.97);
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+    pointer-events: none;
+}
+
+.shopys-tg-login-dropdown.shopys-tg-dd--open {
+    width: 270px;
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.shopys-tg-login-dd-header {
+    padding: 14px 16px 8px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.shopys-tg-widget-wrap {
+    padding: 8px 16px 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.shopys-tg-widget-wrap iframe {
+    border-radius: 8px !important;
+}
+
 /* ── Logged-in User Area ────────────────────────────────────── */
 .shopys-tg-user {
-    position: relative;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 999999;
     display: inline-flex;
     align-items: center;
-    margin-left: 10px;
 }
 
 .shopys-tg-avatar-btn {
@@ -114,9 +175,8 @@
     transform: rotate(180deg);
 }
 
-/* ── Dropdown Menu ──────────────────────────────────────────── */
+/* ── Dropdown Menu (logged-in) ──────────────────────────────── */
 .shopys-tg-dropdown {
-    display: none;
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
@@ -124,26 +184,21 @@
     background: #fff;
     border: 1px solid #e8e8e8;
     border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
     overflow: hidden;
     z-index: 9999;
-    animation: shopys-tg-fade-in 0.15s ease;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px) scale(0.97);
+    transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+    pointer-events: none;
 }
 
 .shopys-tg-dropdown.shopys-tg-dd--open {
-    display: block;
-}
-
-@keyframes shopys-tg-fade-in {
-    from {
-        opacity: 0;
-        transform: translateY(-4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
 }
 
 .shopys-tg-dd-item {

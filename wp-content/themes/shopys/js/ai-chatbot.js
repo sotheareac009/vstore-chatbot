@@ -6,11 +6,13 @@
     'use strict';
 
     var cfg, toggle, chatWindow, messagesEl, inputEl, sendBtn, headerName, closeBtn, fullscreenBtn, newChatBtn, modelSelect, attachBtn, fileInput, attachPreview;
+    var tgLoginGate, tgLoginWidget;
     var history = [];
     var attachments = []; // { name, type, data (base64), previewUrl }
     var isOpen = false;
     var isSending = false;
     var isFullscreen = false;
+    var tgSession = null; // { telegram_id, auth_date, session, first_name, photo_url }
 
     document.addEventListener('DOMContentLoaded', init);
 
@@ -32,9 +34,21 @@
         fileInput     = document.getElementById('sai-file-input');
         attachPreview = document.getElementById('sai-attach-preview');
 
+        tgLoginGate   = document.getElementById('sai-tg-login-gate');
+        tgLoginWidget = document.getElementById('sai-tg-login-widget');
+
         if (!toggle || !chatWindow) return;
 
         headerName.textContent = cfg.bot_name;
+
+        // Restore Telegram session from localStorage
+        if (cfg.require_tg_login === '1') {
+            var saved = localStorage.getItem('sai_tg_session');
+            if (saved) {
+                try { tgSession = JSON.parse(saved); } catch (e) { tgSession = null; }
+            }
+            initTelegramGate();
+        }
 
         // Events
         toggle.addEventListener('click', toggleChat);
@@ -158,11 +172,136 @@
         inputEl.focus();
     }
 
+    var savedWidth = '';
+    var savedHeight = '';
+
     function toggleFullscreen() {
         isFullscreen = !isFullscreen;
+        if (isFullscreen) {
+            // Save any inline dimensions from resize, then clear them so CSS class takes over
+            savedWidth  = chatWindow.style.width;
+            savedHeight = chatWindow.style.height;
+            chatWindow.style.width  = '';
+            chatWindow.style.height = '';
+        } else {
+            // Restore previous resize dimensions
+            chatWindow.style.width  = savedWidth;
+            chatWindow.style.height = savedHeight;
+        }
         chatWindow.classList.toggle('sai-fullscreen-mode', isFullscreen);
         scrollBottom();
     }
+
+    /* ── Telegram Login Gate ──────────────────────────── */
+
+    function initTelegramGate() {
+        if (!tgLoginGate) return;
+
+        if (tgSession) {
+            // Already logged in — show chat, hide gate
+            showChatUI();
+        } else {
+            // Show login gate, hide chat UI
+            showLoginGate();
+        }
+    }
+
+    function showLoginGate() {
+        if (!tgLoginGate) return;
+        tgLoginGate.style.display = 'flex';
+        messagesEl.style.display = 'none';
+        document.querySelector('.sai-toolbar').style.display = 'none';
+        document.querySelector('.sai-attach-preview').style.display = 'none';
+        document.querySelector('.sai-input-area').style.display = 'none';
+
+        // Load Telegram widget
+        if (tgLoginWidget && !tgLoginWidget.querySelector('script')) {
+            var script = document.createElement('script');
+            script.async = true;
+            script.src = 'https://telegram.org/js/telegram-widget.js?22';
+            script.setAttribute('data-telegram-login', cfg.tg_bot_username);
+            script.setAttribute('data-size', 'large');
+            script.setAttribute('data-radius', '8');
+            script.setAttribute('data-onauth', 'shopysAI_onTelegramAuth(user)');
+            script.setAttribute('data-request-access', 'write');
+            tgLoginWidget.appendChild(script);
+        }
+    }
+
+    function showChatUI() {
+        if (tgLoginGate) tgLoginGate.style.display = 'none';
+        messagesEl.style.display = '';
+        document.querySelector('.sai-toolbar').style.display = '';
+        document.querySelector('.sai-attach-preview').style.display = '';
+        document.querySelector('.sai-input-area').style.display = '';
+
+        // Show user badge in header
+        renderTgBadge();
+    }
+
+    function renderTgBadge() {
+        // Remove existing badge
+        var existing = document.querySelector('.sai-tg-user-badge');
+        if (existing) existing.remove();
+        if (!tgSession) return;
+
+        var badge = document.createElement('div');
+        badge.className = 'sai-tg-user-badge';
+
+        var imgHtml = '';
+        if (tgSession.photo_url) {
+            imgHtml = '<img src="' + escAttr(tgSession.photo_url) + '" alt="" />';
+        }
+
+        badge.innerHTML = imgHtml +
+            '<span class="sai-tg-badge-name">' + escHtml(tgSession.first_name) + '</span>' +
+            '<button class="sai-tg-logout-btn" title="Logout">Logout</button>';
+
+        // Insert before the header buttons
+        var headerInfo = document.querySelector('.sai-header-info');
+        if (headerInfo) headerInfo.parentNode.insertBefore(badge, headerInfo.nextSibling);
+
+        badge.querySelector('.sai-tg-logout-btn').addEventListener('click', function () {
+            tgSession = null;
+            localStorage.removeItem('sai_tg_session');
+            newChat();
+            showLoginGate();
+        });
+    }
+
+    // Global callback for Telegram widget
+    window.shopysAI_onTelegramAuth = function (user) {
+        // Verify with server and save session
+        var formData = new FormData();
+        formData.append('action', 'shopys_ai_tg_auth');
+        formData.append('nonce', cfg.nonce);
+        formData.append('tg_data', JSON.stringify(user));
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', cfg.ajax_url, true);
+        xhr.onload = function () {
+            try {
+                var resp = JSON.parse(xhr.responseText);
+                if (resp.success) {
+                    tgSession = {
+                        telegram_id: resp.data.telegram_id,
+                        auth_date: user.auth_date,
+                        session: resp.data.session,
+                        first_name: resp.data.first_name,
+                        photo_url: resp.data.photo_url || ''
+                    };
+                    localStorage.setItem('sai_tg_session', JSON.stringify(tgSession));
+                    showChatUI();
+                    showWelcome();
+                } else {
+                    alert(resp.data && resp.data.message ? resp.data.message : 'Login failed. Please try again.');
+                }
+            } catch (e) {
+                alert('Login failed. Please try again.');
+            }
+        };
+        xhr.send(formData);
+    };
 
     function toggleChat() {
         isOpen = !isOpen;
@@ -170,7 +309,12 @@
         chatWindow.classList.toggle('sai-open', isOpen);
 
         if (isOpen && messagesEl.children.length === 0) {
-            showWelcome();
+            // If Telegram login required and not logged in, don't show welcome
+            if (cfg.require_tg_login === '1' && !tgSession) {
+                // Gate will be shown by initTelegramGate
+            } else {
+                showWelcome();
+            }
         }
 
         if (isOpen) {
@@ -221,6 +365,13 @@
         formData.append('model', modelSelect ? modelSelect.value : 'claude-opus-4-6');
         formData.append('page_url', window.location.href);
 
+        // Attach Telegram session if required
+        if (cfg.require_tg_login === '1' && tgSession) {
+            formData.append('tg_id', tgSession.telegram_id);
+            formData.append('tg_auth_date', tgSession.auth_date);
+            formData.append('tg_session', tgSession.session);
+        }
+
         // Attach files as base64 JSON
         if (filesToSend.length > 0) {
             var fileData = [];
@@ -253,6 +404,12 @@
 
                         appendBot(formatMessage(msg), products);
                     } else {
+                        // If server says login required (session expired), show login gate
+                        if (resp.data && resp.data.require_login) {
+                            tgSession = null;
+                            localStorage.removeItem('sai_tg_session');
+                            showLoginGate();
+                        }
                         var errMsg = (resp.data && resp.data.message) ? resp.data.message : 'Something went wrong.';
                         appendBot('<p>' + escHtml(errMsg) + '</p>', []);
                     }

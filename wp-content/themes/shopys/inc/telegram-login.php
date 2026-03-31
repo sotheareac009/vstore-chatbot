@@ -12,10 +12,10 @@
 
 // ── Configuration ──────────────────────────────────────────────────────────────
 if ( ! defined( 'SHOPYS_TG_BOT_USERNAME' ) ) {
-    define( 'SHOPYS_TG_BOT_USERNAME', 'myshop_login_bot' ); // your bot @username (without @)
+    define( 'SHOPYS_TG_BOT_USERNAME', 'vstorecenter_bot' ); // your bot @username (without @)
 }
 if ( ! defined( 'SHOPYS_TG_BOT_TOKEN' ) ) {
-    define( 'SHOPYS_TG_BOT_TOKEN', '8617976940:AAH7uoYWsG7QmdBWxyqOgvE5P4aTNm0n8_Y' ); // your bot token from @BotFather
+    define( 'SHOPYS_TG_BOT_TOKEN', '8727268613:AAHqUtx0L7wjF5qMn9CSFYYPweIpKCdzZ7g' ); // your bot token from @BotFather
 }
 
 // ── 1. Handle Telegram callback (runs early, before any output) ────────────────
@@ -206,51 +206,44 @@ function shopys_render_tg_login_button() {
         </script>
         <?php
     } else {
-        // ── Logged-out state: Login button ───────────────────────────────────
+        // ── Logged-out state: Login button with Telegram Widget dropdown ─────
         ?>
         <div class="shopys-tg-login-wrap" id="shopys-tg-login-wrap">
-            <button class="shopys-tg-login-btn" id="shopys-tg-login-btn" type="button">
+            <button class="shopys-tg-login-btn" id="shopys-tg-login-trigger" type="button" aria-haspopup="true" aria-expanded="false" title="Login with Telegram">
                 <svg class="shopys-tg-icon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.954l11.57-4.461c.537-.194 1.006.131.833.942z"/>
                 </svg>
-                <?php esc_html_e( 'Login', 'shopys' ); ?>
+                <span><?php esc_html_e( 'Login', 'shopys' ); ?></span>
+                <svg class="shopys-tg-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
             </button>
-
-            <!-- Telegram Login Widget (hidden, triggered by button click) -->
-            <div id="shopys-tg-widget-wrap" style="display:none; position:absolute;">
-                <script
-                    async
-                    src="https://telegram.org/js/telegram-widget.js?22"
-                    data-telegram-login="<?php echo esc_attr( $bot_username ); ?>"
-                    data-size="medium"
-                    data-auth-url="<?php echo esc_url( $callback_url ); ?>"
-                    data-request-access="write"
-                ></script>
+            <div class="shopys-tg-login-dropdown" id="shopys-tg-login-dropdown">
+                <div class="shopys-tg-login-dd-header">Sign in with Telegram</div>
+                <div class="shopys-tg-widget-wrap">
+                    <script async src="https://telegram.org/js/telegram-widget.js?22"
+                        data-telegram-login="<?php echo esc_attr( $bot_username ); ?>"
+                        data-size="large"
+                        data-radius="8"
+                        data-auth-url="<?php echo esc_url( $callback_url ); ?>"
+                        data-request-access="write">
+                    </script>
+                </div>
             </div>
         </div>
-
         <script>
-        (function () {
-            var btn    = document.getElementById('shopys-tg-login-btn');
-            var widget = document.getElementById('shopys-tg-widget-wrap');
-            if ( ! btn || ! widget ) return;
-
-            btn.addEventListener('click', function () {
-                // Find the Telegram iframe/button inside the widget and trigger it
-                widget.style.display = 'block';
-
-                // Wait for the widget iframe to load then click it
-                var attempts = 0;
-                var interval = setInterval(function () {
-                    var iframe = widget.querySelector('iframe');
-                    if (iframe) {
-                        clearInterval(interval);
-                        iframe.click();
-                        // Hide the widget wrapper again (it will open the Telegram popup)
-                        setTimeout(function(){ widget.style.display = 'none'; }, 500);
-                    }
-                    if (++attempts > 40) clearInterval(interval); // 4s timeout
-                }, 100);
+        (function(){
+            var btn = document.getElementById('shopys-tg-login-trigger');
+            var dd  = document.getElementById('shopys-tg-login-dropdown');
+            if (!btn || !dd) return;
+            btn.addEventListener('click', function(e){
+                e.stopPropagation();
+                var open = dd.classList.toggle('shopys-tg-dd--open');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            document.addEventListener('click', function(e){
+                if (!dd.contains(e.target)) {
+                    dd.classList.remove('shopys-tg-dd--open');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
             });
         })();
         </script>
