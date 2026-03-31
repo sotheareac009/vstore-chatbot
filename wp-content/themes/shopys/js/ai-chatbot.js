@@ -39,10 +39,17 @@
 
         if (!toggle || !chatWindow) return;
 
+        // Hide chatbot entirely if explicitly disabled in settings
+        if (cfg.enabled === '0') {
+            toggle.style.display = 'none';
+            chatWindow.style.display = 'none';
+            return;
+        }
+
         headerName.textContent = cfg.bot_name;
 
         // Restore Telegram session from localStorage
-        if (cfg.require_tg_login === '1') {
+        if (cfg.require_tg_login !== '0') {
             var saved = localStorage.getItem('sai_tg_session');
             if (saved) {
                 try { tgSession = JSON.parse(saved); } catch (e) { tgSession = null; }
@@ -90,16 +97,16 @@
         });
 
         // Hide attachment UI if attachments are disabled
-        if (cfg.feat_attachments !== '1') {
+        if (cfg.feat_attachments === '0') {
             if (attachBtn) attachBtn.style.display = 'none';
             if (fileInput) fileInput.disabled = true;
         }
 
         // Update file input accept based on enabled features
-        if (fileInput && cfg.feat_attachments === '1') {
+        if (fileInput && cfg.feat_attachments !== '0') {
             var acceptTypes = [];
-            if (cfg.feat_image_search === '1') acceptTypes.push('image/*');
-            if (cfg.feat_pdf_reading === '1') acceptTypes.push('.pdf');
+            if (cfg.feat_image_search !== '0') acceptTypes.push('image/*');
+            if (cfg.feat_pdf_reading !== '0') acceptTypes.push('.pdf');
             if (acceptTypes.length) {
                 fileInput.setAttribute('accept', acceptTypes.join(','));
             } else {
@@ -310,7 +317,7 @@
 
         if (isOpen && messagesEl.children.length === 0) {
             // If Telegram login required and not logged in, don't show welcome
-            if (cfg.require_tg_login === '1' && !tgSession) {
+            if (cfg.require_tg_login !== '0' && !tgSession) {
                 // Gate will be shown by initTelegramGate
             } else {
                 showWelcome();
@@ -366,7 +373,7 @@
         formData.append('page_url', window.location.href);
 
         // Attach Telegram session if required
-        if (cfg.require_tg_login === '1' && tgSession) {
+        if (cfg.require_tg_login !== '0' && tgSession) {
             formData.append('tg_id', tgSession.telegram_id);
             formData.append('tg_auth_date', tgSession.auth_date);
             formData.append('tg_session', tgSession.session);
@@ -432,9 +439,9 @@
     /* ── Attachment Handling ──────────────────────────── */
 
     function handleDroppedFiles(files) {
-        if (cfg.feat_attachments !== '1') return;
-        var allowImage = cfg.feat_image_search === '1';
-        var allowPdf = cfg.feat_pdf_reading === '1';
+        if (cfg.feat_attachments === '0') return;
+        var allowImage = cfg.feat_image_search !== '0';
+        var allowPdf = cfg.feat_pdf_reading !== '0';
         for (var i = 0; i < files.length; i++) {
             var t = files[i].type;
             if (allowImage && /^image\/(jpeg|png|gif|webp)$/.test(t)) {
@@ -506,12 +513,12 @@
         var hasPdf = attachments.some(function (a) { return a.type === 'application/pdf'; });
 
         html += '<div class="sai-quick-actions">';
-        if (hasImage && cfg.feat_image_search === '1') {
+        if (hasImage && cfg.feat_image_search !== '0') {
             html += '<button class="sai-quick-btn" data-cmd="find_product">&#x1F50D; Find Product</button>';
             html += '<button class="sai-quick-btn" data-cmd="read_image">&#x1F4D6; Read Text</button>';
             html += '<button class="sai-quick-btn" data-cmd="summarize_image">&#x2728; Summarize</button>';
         }
-        if (hasPdf && cfg.feat_pdf_reading === '1') {
+        if (hasPdf && cfg.feat_pdf_reading !== '0') {
             html += '<button class="sai-quick-btn" data-cmd="summarize_pdf">&#x1F4C4; Summarize PDF</button>';
             html += '<button class="sai-quick-btn" data-cmd="read_pdf">&#x1F4D6; Read PDF</button>';
         }

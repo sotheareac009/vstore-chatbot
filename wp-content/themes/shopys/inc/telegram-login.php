@@ -156,6 +156,13 @@ function shopys_tg_login_assets() {
 add_action( 'open_shop_below_header', 'shopys_render_tg_login_button', 5 );
 
 function shopys_render_tg_login_button() {
+    // Hide if header login is off OR if Telegram login is not required
+    $show_header = get_option( 'shopys_ai_show_header_login', '1' );
+    $require_tg  = get_option( 'shopys_ai_require_tg_login', '1' );
+    if ( $show_header === '0' || $require_tg === '0' ) {
+        return;
+    }
+
     // Build the callback URL (current page + tg_auth=1)
     $callback_url = add_query_arg( 'tg_auth', '1', home_url( '/' ) );
     $bot_username = SHOPYS_TG_BOT_USERNAME;

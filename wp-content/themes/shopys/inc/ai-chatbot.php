@@ -39,6 +39,7 @@ function shopys_ai_create_tg_table() {
         last_active DATETIME DEFAULT CURRENT_TIMESTAMP,
         session_count INT UNSIGNED DEFAULT 1,
         message_count INT UNSIGNED DEFAULT 0,
+        total_cost DECIMAL(10,6) DEFAULT 0.000000,
         PRIMARY KEY (id),
         UNIQUE KEY tg_id (telegram_id),
         KEY last_active_idx (last_active)
@@ -46,7 +47,13 @@ function shopys_ai_create_tg_table() {
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
     dbDelta( $sql );
-    update_option( 'shopys_ai_tg_table_version', '1.0' );
+
+    // Add total_cost column if upgrading from older version
+    $current_version = get_option( 'shopys_ai_tg_table_version', '1.0' );
+    if ( version_compare( $current_version, '1.1', '<' ) ) {
+        $wpdb->query( "ALTER TABLE {$table} ADD COLUMN IF NOT EXISTS total_cost DECIMAL(10,6) DEFAULT 0.000000" );
+    }
+    update_option( 'shopys_ai_tg_table_version', '1.1' );
 }
 
 /**
@@ -165,6 +172,36 @@ function shopys_ai_tg_increment_messages( $tg_id ) {
     ) );
 }
 
+/**
+ * Add API cost to a Telegram user's total.
+ */
+function shopys_ai_tg_add_cost( $tg_id, $cost ) {
+    if ( ! $tg_id || $cost <= 0 ) return;
+    global $wpdb;
+    $table = $wpdb->prefix . 'chatbot_telegram_users';
+    $wpdb->query( $wpdb->prepare(
+        "UPDATE {$table} SET total_cost = total_cost + %f WHERE telegram_id = %d",
+        $cost, $tg_id
+    ) );
+}
+
+/**
+ * Calculate cost from Claude API usage tokens.
+ * Pricing per 1M tokens (as of 2025):
+ *   Haiku:  input $1.00,  output $5.00
+ *   Sonnet: input $3.00,  output $15.00
+ *   Opus:   input $15.00, output $75.00
+ */
+function shopys_ai_calculate_cost( $model, $input_tokens, $output_tokens ) {
+    $pricing = array(
+        'claude-haiku-4-5-20251001' => array( 'in' => 1.00,  'out' => 5.00 ),
+        'claude-sonnet-4-6'         => array( 'in' => 3.00,  'out' => 15.00 ),
+        'claude-opus-4-6'           => array( 'in' => 15.00, 'out' => 75.00 ),
+    );
+    $rate = isset( $pricing[ $model ] ) ? $pricing[ $model ] : $pricing['claude-opus-4-6'];
+    return ( $input_tokens * $rate['in'] / 1000000 ) + ( $output_tokens * $rate['out'] / 1000000 );
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    1. ADMIN SETTINGS PAGE
    ═══════════════════════════════════════════════════════════════════ */
@@ -196,6 +233,9 @@ function shopys_ai_register_settings() {
 
     // Telegram login requirement
     register_setting( 'shopys_ai_settings', 'shopys_ai_require_tg_login',  'sanitize_text_field' );
+
+    // Header login button visibility
+    register_setting( 'shopys_ai_settings', 'shopys_ai_show_header_login', 'sanitize_text_field' );
 }
 
 function shopys_ai_settings_page() {
@@ -211,6 +251,7 @@ function shopys_ai_settings_page() {
     $link_comparison = get_option( 'shopys_ai_link_comparison', '1' );
     $attachments_on  = get_option( 'shopys_ai_attachments', '1' );
     $require_tg      = get_option( 'shopys_ai_require_tg_login', '1' );
+    $show_header_login = get_option( 'shopys_ai_show_header_login', '1' );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'AI Chatbot Settings', 'shopys' ); ?></h1>
@@ -276,6 +317,16 @@ function shopys_ai_settings_page() {
                     </td>
                 </tr>
                 <tr>
+                    <th scope="row"><?php esc_html_e( 'Show Header Login Button', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_show_header_login" id="shopys_ai_show_header_login">
+                            <option value="1" <?php selected( $show_header_login, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $show_header_login, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">Show the Telegram Login / User button in the top-right corner of the header.</p>
+                    </td>
+                </tr>
+                <tr>
                     <th scope="row"><?php esc_html_e( 'Product-Only Mode', 'shopys' ); ?></th>
                     <td>
                         <select name="shopys_ai_product_only" id="shopys_ai_product_only">
@@ -330,15 +381,20 @@ function shopys_ai_settings_page() {
         </form>
 
         <?php
-        // ── Telegram Chatbot Users Table ──
+        // ── Telegram Chatbot Users Table with Pagination ──
         global $wpdb;
-        $tg_table = $wpdb->prefix . 'chatbot_telegram_users';
-        $tg_users = $wpdb->get_results( "SELECT * FROM {$tg_table} ORDER BY last_active DESC LIMIT 50", ARRAY_A );
+        $tg_table   = $wpdb->prefix . 'chatbot_telegram_users';
+        $per_page   = 20;
+        $current_pg = isset( $_GET['tg_pg'] ) ? max( 1, intval( $_GET['tg_pg'] ) ) : 1;
+        $offset     = ( $current_pg - 1 ) * $per_page;
+        $total      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tg_table}" );
+        $total_pages = ceil( $total / $per_page );
+        $tg_users   = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$tg_table} ORDER BY last_active DESC LIMIT %d OFFSET %d", $per_page, $offset ), ARRAY_A );
         if ( $tg_users ) :
         ?>
         <h2 style="margin-top:40px;">Telegram Chatbot Users</h2>
-        <p style="font-size:13px;color:#666;">Users who logged in via Telegram to use the chatbot (latest 50).</p>
-        <table class="widefat striped" style="max-width:900px;">
+        <p style="font-size:13px;color:#666;">All users who logged in via Telegram to use the chatbot. Showing <?php echo $total; ?> total users.</p>
+        <table class="widefat striped" style="width:100%;">
             <thead>
                 <tr>
                     <th>Telegram ID</th>
@@ -349,6 +405,7 @@ function shopys_ai_settings_page() {
                     <th>Last Active</th>
                     <th>Sessions</th>
                     <th>Messages</th>
+                    <th>API Cost</th>
                 </tr>
             </thead>
             <tbody>
@@ -362,10 +419,37 @@ function shopys_ai_settings_page() {
                     <td><?php echo esc_html( $tu['last_active'] ); ?></td>
                     <td><?php echo intval( $tu['session_count'] ); ?></td>
                     <td><?php echo intval( $tu['message_count'] ); ?></td>
+                    <td><strong>$<?php echo number_format( floatval( $tu['total_cost'] ?? 0 ), 4 ); ?></strong></td>
                 </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
+        <?php if ( $total_pages > 1 ) : ?>
+        <div class="tablenav" style="margin-top:12px;">
+            <div class="tablenav-pages">
+                <span class="displaying-num"><?php echo $total; ?> items</span>
+                <span class="pagination-links">
+                    <?php if ( $current_pg > 1 ) : ?>
+                        <a class="first-page button" href="<?php echo esc_url( add_query_arg( 'tg_pg', 1 ) ); ?>">&laquo;</a>
+                        <a class="prev-page button" href="<?php echo esc_url( add_query_arg( 'tg_pg', $current_pg - 1 ) ); ?>">&lsaquo;</a>
+                    <?php else : ?>
+                        <span class="tablenav-pages-navspan button disabled">&laquo;</span>
+                        <span class="tablenav-pages-navspan button disabled">&lsaquo;</span>
+                    <?php endif; ?>
+                    <span class="paging-input">
+                        <strong><?php echo $current_pg; ?></strong> of <strong><?php echo $total_pages; ?></strong>
+                    </span>
+                    <?php if ( $current_pg < $total_pages ) : ?>
+                        <a class="next-page button" href="<?php echo esc_url( add_query_arg( 'tg_pg', $current_pg + 1 ) ); ?>">&rsaquo;</a>
+                        <a class="last-page button" href="<?php echo esc_url( add_query_arg( 'tg_pg', $total_pages ) ); ?>">&raquo;</a>
+                    <?php else : ?>
+                        <span class="tablenav-pages-navspan button disabled">&rsaquo;</span>
+                        <span class="tablenav-pages-navspan button disabled">&raquo;</span>
+                    <?php endif; ?>
+                </span>
+            </div>
+        </div>
+        <?php endif; ?>
         <?php endif; ?>
     </div>
     <?php
@@ -909,7 +993,13 @@ function shopys_ai_call_claude( $api_key, $system_prompt, $messages, $model = 'c
     }
 
     if ( isset( $data['content'][0]['text'] ) ) {
-        return $data['content'][0]['text'];
+        $usage = isset( $data['usage'] ) ? $data['usage'] : array();
+        return array(
+            'text'          => $data['content'][0]['text'],
+            'input_tokens'  => isset( $usage['input_tokens'] ) ? (int) $usage['input_tokens'] : 0,
+            'output_tokens' => isset( $usage['output_tokens'] ) ? (int) $usage['output_tokens'] : 0,
+            'model'         => $model,
+        );
     }
 
     return new WP_Error( 'claude_empty', 'Empty response from Claude.' );
@@ -925,8 +1015,10 @@ add_action( 'wp_ajax_nopriv_shopys_ai_chat', 'shopys_ai_chat_handler' );
 function shopys_ai_chat_handler() {
     check_ajax_referer( 'shopys_ai_nonce', 'nonce' );
 
+    $tg_id = 0; // Track Telegram user for cost logging
+
     // Enforce Telegram login if required
-    if ( get_option( 'shopys_ai_require_tg_login', '1' ) === '1' ) {
+    if ( get_option( 'shopys_ai_require_tg_login', '1' ) !== '0' ) {
         $tg_id       = isset( $_POST['tg_id'] ) ? intval( $_POST['tg_id'] ) : 0;
         $tg_auth     = isset( $_POST['tg_auth_date'] ) ? intval( $_POST['tg_auth_date'] ) : 0;
         $tg_session  = isset( $_POST['tg_session'] ) ? sanitize_text_field( wp_unslash( $_POST['tg_session'] ) ) : '';
@@ -969,7 +1061,7 @@ function shopys_ai_chat_handler() {
 
     // ── Product-Only Pre-Filter (saves API credits) ──────────────────
     // Catches obviously off-topic messages BEFORE calling Claude
-    $is_product_only_mode = get_option( 'shopys_ai_product_only', '1' ) === '1';
+    $is_product_only_mode = get_option( 'shopys_ai_product_only', '1' ) !== '0';
     if ( $is_product_only_mode && ! empty( $message ) ) {
         $msg_lower = strtolower( trim( $message ) );
 
@@ -1485,11 +1577,11 @@ function shopys_ai_chat_handler() {
     }
 
     // Feature toggle checks
-    $is_product_only    = get_option( 'shopys_ai_product_only', '1' ) === '1';
-    $is_image_search    = get_option( 'shopys_ai_image_search', '1' ) === '1';
-    $is_pdf_reading     = get_option( 'shopys_ai_pdf_reading', '1' ) === '1';
-    $is_link_comparison = get_option( 'shopys_ai_link_comparison', '1' ) === '1';
-    $is_attachments     = get_option( 'shopys_ai_attachments', '1' ) === '1';
+    $is_product_only    = get_option( 'shopys_ai_product_only', '1' ) !== '0';
+    $is_image_search    = get_option( 'shopys_ai_image_search', '1' ) !== '0';
+    $is_pdf_reading     = get_option( 'shopys_ai_pdf_reading', '1' ) !== '0';
+    $is_link_comparison = get_option( 'shopys_ai_link_comparison', '1' ) !== '0';
+    $is_attachments     = get_option( 'shopys_ai_attachments', '1' ) !== '0';
 
     $system_prompt = "You are {$bot_name}, the AI shopping assistant for **{$store_name}**.
 
@@ -1710,6 +1802,13 @@ Outside link comparison is currently DISABLED. If a user pastes product URLs fro
                     wp_send_json_error( array( 'message' => 'Sorry, something went wrong: ' . $result->get_error_message() ) );
                 }
 
+                // Track cost
+                if ( ! empty( $tg_id ) && is_array( $result ) ) {
+                    $cost = shopys_ai_calculate_cost( $result['model'], $result['input_tokens'], $result['output_tokens'] );
+                    shopys_ai_tg_add_cost( $tg_id, $cost );
+                }
+                $result = is_array( $result ) ? $result['text'] : $result;
+
                 $product_ids = array();
                 $ai_message  = $result;
 
@@ -1785,6 +1884,13 @@ Outside link comparison is currently DISABLED. If a user pastes product URLs fro
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( array( 'message' => 'Sorry, something went wrong: ' . $result->get_error_message() ) );
         }
+
+        // Track cost
+        if ( ! empty( $tg_id ) && is_array( $result ) ) {
+            $cost = shopys_ai_calculate_cost( $result['model'], $result['input_tokens'], $result['output_tokens'] );
+            shopys_ai_tg_add_cost( $tg_id, $cost );
+        }
+        $result = is_array( $result ) ? $result['text'] : $result;
 
         $product_ids = array();
         $ai_message  = $result;
@@ -2105,6 +2211,13 @@ Outside link comparison is currently DISABLED. If a user pastes product URLs fro
         wp_send_json_error( array( 'message' => 'Sorry, something went wrong: ' . $result->get_error_message() ) );
     }
 
+    // Track cost
+    if ( ! empty( $tg_id ) && is_array( $result ) ) {
+        $cost = shopys_ai_calculate_cost( $result['model'], $result['input_tokens'], $result['output_tokens'] );
+        shopys_ai_tg_add_cost( $tg_id, $cost );
+    }
+    $result = is_array( $result ) ? $result['text'] : $result;
+
     // Parse [[PRODUCTS:...]] tag out of Claude's plain-text response
     $product_ids = array();
     $ai_message  = $result;
@@ -2181,7 +2294,6 @@ function shopys_ai_fetch_url_handler() {
 
 add_action( 'wp_enqueue_scripts', 'shopys_ai_chatbot_assets' );
 function shopys_ai_chatbot_assets() {
-    if ( get_option( 'shopys_ai_enabled', '1' ) !== '1' ) return;
     if ( ! class_exists( 'WooCommerce' ) ) return;
     if ( is_admin() ) return;
 
@@ -2223,6 +2335,7 @@ function shopys_ai_chatbot_assets() {
     $tg_bot     = defined( 'SHOPYS_TG_BOT_USERNAME' ) ? SHOPYS_TG_BOT_USERNAME : '';
 
     wp_localize_script( 'shopys-ai-chatbot-js', 'shopysAI', array(
+        'enabled'         => get_option( 'shopys_ai_enabled', '1' ),
         'ajax_url'        => admin_url( 'admin-ajax.php' ),
         'nonce'           => wp_create_nonce( 'shopys_ai_nonce' ),
         'bot_name'        => $bot_name,
@@ -2239,7 +2352,6 @@ function shopys_ai_chatbot_assets() {
 
 add_action( 'wp_footer', 'shopys_ai_chatbot_widget', 50 );
 function shopys_ai_chatbot_widget() {
-    if ( get_option( 'shopys_ai_enabled', '1' ) !== '1' ) return;
     if ( ! class_exists( 'WooCommerce' ) ) return;
     if ( is_admin() ) return;
     ?>
