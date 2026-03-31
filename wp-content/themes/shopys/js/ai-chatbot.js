@@ -75,6 +75,26 @@
             }
         });
 
+        // Hide attachment UI if attachments are disabled
+        if (cfg.feat_attachments !== '1') {
+            if (attachBtn) attachBtn.style.display = 'none';
+            if (fileInput) fileInput.disabled = true;
+        }
+
+        // Update file input accept based on enabled features
+        if (fileInput && cfg.feat_attachments === '1') {
+            var acceptTypes = [];
+            if (cfg.feat_image_search === '1') acceptTypes.push('image/*');
+            if (cfg.feat_pdf_reading === '1') acceptTypes.push('.pdf');
+            if (acceptTypes.length) {
+                fileInput.setAttribute('accept', acceptTypes.join(','));
+            } else {
+                // No file types enabled — hide attach button
+                if (attachBtn) attachBtn.style.display = 'none';
+                fileInput.disabled = true;
+            }
+        }
+
         // Resize handles
         initResize();
     }
@@ -255,9 +275,14 @@
     /* ── Attachment Handling ──────────────────────────── */
 
     function handleDroppedFiles(files) {
-        var allowed = /^(image\/(jpeg|png|gif|webp)|application\/pdf)$/;
+        if (cfg.feat_attachments !== '1') return;
+        var allowImage = cfg.feat_image_search === '1';
+        var allowPdf = cfg.feat_pdf_reading === '1';
         for (var i = 0; i < files.length; i++) {
-            if (allowed.test(files[i].type)) {
+            var t = files[i].type;
+            if (allowImage && /^image\/(jpeg|png|gif|webp)$/.test(t)) {
+                processFile(files[i]);
+            } else if (allowPdf && t === 'application/pdf') {
                 processFile(files[i]);
             }
         }
@@ -319,17 +344,17 @@
         }
         html += '</div>';
 
-        // Quick action buttons
+        // Quick action buttons (conditional on feature flags)
         var hasImage = attachments.some(function (a) { return /^image\//.test(a.type); });
         var hasPdf = attachments.some(function (a) { return a.type === 'application/pdf'; });
 
         html += '<div class="sai-quick-actions">';
-        if (hasImage) {
+        if (hasImage && cfg.feat_image_search === '1') {
             html += '<button class="sai-quick-btn" data-cmd="find_product">&#x1F50D; Find Product</button>';
             html += '<button class="sai-quick-btn" data-cmd="read_image">&#x1F4D6; Read Text</button>';
             html += '<button class="sai-quick-btn" data-cmd="summarize_image">&#x2728; Summarize</button>';
         }
-        if (hasPdf) {
+        if (hasPdf && cfg.feat_pdf_reading === '1') {
             html += '<button class="sai-quick-btn" data-cmd="summarize_pdf">&#x1F4C4; Summarize PDF</button>';
             html += '<button class="sai-quick-btn" data-cmd="read_pdf">&#x1F4D6; Read PDF</button>';
         }

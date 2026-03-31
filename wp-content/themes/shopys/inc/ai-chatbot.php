@@ -27,6 +27,13 @@ function shopys_ai_register_settings() {
     register_setting( 'shopys_ai_settings', 'shopys_ai_api_key',     'sanitize_text_field' );
     register_setting( 'shopys_ai_settings', 'shopys_ai_bot_name',    'sanitize_text_field' );
     register_setting( 'shopys_ai_settings', 'shopys_ai_welcome_msg', 'sanitize_textarea_field' );
+
+    // Feature toggles
+    register_setting( 'shopys_ai_settings', 'shopys_ai_product_only',      'sanitize_text_field' );
+    register_setting( 'shopys_ai_settings', 'shopys_ai_image_search',      'sanitize_text_field' );
+    register_setting( 'shopys_ai_settings', 'shopys_ai_pdf_reading',       'sanitize_text_field' );
+    register_setting( 'shopys_ai_settings', 'shopys_ai_link_comparison',   'sanitize_text_field' );
+    register_setting( 'shopys_ai_settings', 'shopys_ai_attachments',       'sanitize_text_field' );
 }
 
 function shopys_ai_settings_page() {
@@ -34,6 +41,13 @@ function shopys_ai_settings_page() {
     $api_key     = get_option( 'shopys_ai_api_key', '' );
     $bot_name    = get_option( 'shopys_ai_bot_name', 'Shopping Assistant' );
     $welcome_msg = get_option( 'shopys_ai_welcome_msg', "Hi! I'm your shopping assistant.\nAsk me anything — I can recommend products based on your needs!" );
+
+    // Feature toggles (default ON)
+    $product_only    = get_option( 'shopys_ai_product_only', '1' );
+    $image_search    = get_option( 'shopys_ai_image_search', '1' );
+    $pdf_reading     = get_option( 'shopys_ai_pdf_reading', '1' );
+    $link_comparison = get_option( 'shopys_ai_link_comparison', '1' );
+    $attachments_on  = get_option( 'shopys_ai_attachments', '1' );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'AI Chatbot Settings', 'shopys' ); ?></h1>
@@ -81,6 +95,61 @@ function shopys_ai_settings_page() {
                     <td>
                         <textarea name="shopys_ai_welcome_msg" id="shopys_ai_welcome_msg"
                                   rows="3" class="large-text"><?php echo esc_textarea( $welcome_msg ); ?></textarea>
+                    </td>
+                </tr>
+            </table>
+
+            <h2 style="margin-top:30px;"><?php esc_html_e( 'Feature Toggles', 'shopys' ); ?></h2>
+            <p style="font-size:13px;color:#666;">Enable or disable specific chatbot capabilities.</p>
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Product-Only Mode', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_product_only" id="shopys_ai_product_only">
+                            <option value="1" <?php selected( $product_only, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $product_only, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">Restrict the chatbot to only answer product/store-related questions. Off-topic questions will be politely declined.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Image Product Search', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_image_search" id="shopys_ai_image_search">
+                            <option value="1" <?php selected( $image_search, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $image_search, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">Allow users to upload product images to find matching items in the catalog.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'PDF Reading', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_pdf_reading" id="shopys_ai_pdf_reading">
+                            <option value="1" <?php selected( $pdf_reading, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $pdf_reading, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">Allow users to upload PDF files for reading and summarization.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Outside Link Comparison', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_link_comparison" id="shopys_ai_link_comparison">
+                            <option value="1" <?php selected( $link_comparison, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $link_comparison, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">Allow users to paste product links from other websites to compare with your catalog.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'File Attachments', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_attachments" id="shopys_ai_attachments">
+                            <option value="1" <?php selected( $attachments_on, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $attachments_on, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">Allow users to attach images and files to chat messages.</p>
                     </td>
                 </tr>
             </table>
@@ -672,6 +741,462 @@ function shopys_ai_chat_handler() {
         wp_send_json_error( array( 'message' => 'AI chatbot is not configured. Please ask the admin to add the API key in Settings > AI Chatbot.' ) );
     }
 
+    // ── Product-Only Pre-Filter (saves API credits) ──────────────────
+    // Catches obviously off-topic messages BEFORE calling Claude
+    $is_product_only_mode = get_option( 'shopys_ai_product_only', '1' ) === '1';
+    if ( $is_product_only_mode && ! empty( $message ) ) {
+        $msg_lower = strtolower( trim( $message ) );
+
+        // Strip command tags so they don't interfere with detection
+        $msg_clean = preg_replace( '/\[(FIND_PRODUCT|READ_TEXT|SUMMARIZE)\]\s*/i', '', $msg_lower );
+        $msg_clean = trim( $msg_clean );
+
+        // Skip filter if message has attachments (image search / PDF reading)
+        $has_files = ! empty( $file_attachments );
+
+        // Skip filter if message contains a URL (could be product link comparison)
+        $has_url = (bool) preg_match( '/(https?:\/\/|www\.)/i', $msg_clean );
+
+        if ( ! $has_files && ! $has_url && strlen( $msg_clean ) > 2 ) {
+
+            // ── ALLOW LIST: product/store/computer-shop related keywords ──
+            $allow_keywords = array(
+                // Products & shopping
+                'product', 'price', 'cost', 'buy', 'purchase', 'order', 'cart', 'checkout',
+                'shipping', 'delivery', 'return', 'refund', 'warranty', 'stock', 'available',
+                'recommend', 'suggestion', 'compare', 'comparison', 'review', 'rating',
+                'catalog', 'category', 'brand', 'model', 'spec', 'feature', 'deal', 'sale',
+                'discount', 'coupon', 'offer', 'promo', 'cheap', 'expensive', 'budget',
+                'store', 'shop', 'payment', 'pay',
+                // Computer / tech / electronics
+                'computer', 'pc', 'laptop', 'desktop', 'notebook', 'macbook', 'imac',
+                'monitor', 'screen', 'display', 'keyboard', 'mouse', 'headset', 'headphone',
+                'speaker', 'microphone', 'webcam', 'camera', 'printer', 'scanner',
+                'cpu', 'processor', 'gpu', 'graphics card', 'video card', 'ram', 'memory',
+                'ssd', 'hdd', 'hard drive', 'storage', 'motherboard', 'mainboard',
+                'power supply', 'psu', 'case', 'cooling', 'fan', 'rgb',
+                'intel', 'amd', 'nvidia', 'geforce', 'radeon', 'ryzen', 'core i',
+                'windows', 'macos', 'linux', 'operating system',
+                'wifi', 'bluetooth', 'ethernet', 'router', 'modem', 'network', 'cable',
+                'usb', 'hdmi', 'thunderbolt', 'port', 'adapter', 'hub', 'dock',
+                'tablet', 'ipad', 'phone', 'smartphone', 'iphone', 'samsung', 'android',
+                'charger', 'battery', 'power bank',
+                'gaming', 'gamer', 'fps', 'resolution', '4k', '1080p', '1440p',
+                'software', 'program', 'app', 'antivirus', 'office', 'microsoft',
+                'server', 'nas', 'backup', 'cloud',
+                'component', 'peripheral', 'accessory', 'gadget', 'device', 'electronic',
+                'tech', 'hardware', 'build', 'upgrade', 'setup', 'install',
+                'gb', 'tb', 'mhz', 'ghz', 'watt', 'inch',
+                // Technology brands & products
+                'apple', 'lenovo', 'dell', 'hp', 'asus', 'acer', 'msi', 'razer',
+                'logitech', 'corsair', 'steelseries', 'hyperx', 'kingston', 'crucial',
+                'western digital', 'seagate', 'sandisk', 'toshiba', 'sony', 'lg',
+                'benq', 'viewsonic', 'philips', 'gigabyte', 'asrock', 'evga', 'zotac',
+                'nzxt', 'cooler master', 'thermaltake', 'be quiet', 'seasonic',
+                'tp-link', 'netgear', 'linksys', 'ubiquiti', 'synology', 'qnap',
+                'epson', 'canon', 'brother', 'xerox', 'huawei', 'xiaomi', 'oppo',
+                'google pixel', 'oneplus', 'realme', 'vivo', 'nothing phone',
+                'surface', 'thinkpad', 'zenbook', 'vivobook', 'inspiron', 'pavilion',
+                'predator', 'legion', 'rog', 'tuf', 'nitro', 'omen', 'alienware',
+                // Computer accessories & peripherals
+                'mousepad', 'mouse pad', 'wrist rest', 'monitor arm', 'monitor stand',
+                'laptop stand', 'laptop bag', 'laptop sleeve', 'laptop cooler',
+                'docking station', 'kvm switch', 'usb hub', 'card reader', 'sd card',
+                'flash drive', 'thumb drive', 'external drive', 'portable drive',
+                'surge protector', 'ups', 'uninterruptible', 'power strip',
+                'webcam cover', 'privacy screen', 'screen protector', 'cleaning kit',
+                'thermal paste', 'cable management', 'cable sleeve', 'cable clip',
+                'desk mat', 'desk pad', 'ergonomic', 'standing desk', 'sit stand',
+                'monitor light', 'desk lamp', 'led strip', 'light bar',
+                'stream deck', 'capture card', 'game controller', 'joystick', 'gamepad',
+                'racing wheel', 'flight stick', 'vr headset', 'vr', 'oculus', 'meta quest',
+                'stylus', 'pen tablet', 'drawing tablet', 'wacom', 'xp-pen', 'huion',
+                // Audio & video tech
+                'earbuds', 'earphone', 'airpods', 'soundbar', 'subwoofer', 'amplifier',
+                'dac', 'audio interface', 'mixer', 'studio monitor', 'condenser mic',
+                'noise cancelling', 'anc', 'wireless', 'bluetooth speaker',
+                'projector', 'streaming', 'hdmi cable', 'displayport', 'dp cable',
+                // Networking & connectivity
+                'mesh wifi', 'wifi extender', 'range extender', 'access point',
+                'switch', 'network switch', 'patch cable', 'cat5', 'cat6', 'cat7',
+                'fiber optic', 'powerline', 'vpn', 'firewall', 'poe',
+                'sim card', 'esim', '5g', '4g', 'lte', 'hotspot', 'dongle',
+                // Smart home & IoT
+                'smart home', 'smart plug', 'smart light', 'smart lock', 'smart speaker',
+                'alexa', 'echo', 'google home', 'home assistant', 'iot',
+                'security camera', 'doorbell camera', 'ring', 'nest', 'arlo',
+                'smart watch', 'smartwatch', 'fitness tracker', 'garmin', 'fitbit',
+                'apple watch', 'galaxy watch', 'wearable',
+                // Printer & office tech
+                'toner', 'ink cartridge', 'inkjet', 'laser printer', 'label printer',
+                '3d printer', '3d printing', 'filament', 'pla', 'abs',
+                'laminator', 'shredder', 'binding machine', 'paper',
+                // Tech specs & general terms
+                'benchmark', 'overclock', 'bios', 'uefi', 'firmware', 'driver',
+                'latency', 'bandwidth', 'throughput', 'refresh rate', 'response time',
+                'oled', 'ips', 'va', 'tn', 'hdr', 'freesync', 'g-sync',
+                'nvme', 'sata', 'pcie', 'ddr4', 'ddr5', 'm.2', 'dimm', 'sodimm',
+                'lpddr', 'emmc', 'ufs', 'raid',
+                'ampere', 'rdna', 'arc', 'tensor', 'npu', 'tpu', 'ai chip',
+                'rtx', 'gtx', 'rx ', 'vram', 'cuda', 'ray tracing',
+                'wh', 'mah', 'volt', 'amp', 'lumen', 'nit', 'cd/m2',
+                'mini led', 'micro led', 'qled', 'nano ips', 'quantum dot',
+                'type-c', 'usb-c', 'usb-a', 'lightning', 'magsafe', 'qi', 'wireless charging',
+                'ip67', 'ip68', 'waterproof', 'dustproof', 'rugged', 'mil-std',
+
+                // ── Amazon / Best Buy / Newegg categories ──
+                // Laptops & notebooks (sub-categories)
+                'chromebook', 'ultrabook', '2-in-1', 'convertible', 'detachable',
+                'workstation', 'mobile workstation', 'thin and light', 'business laptop',
+                'gaming laptop', 'student laptop', 'budget laptop', 'refurbished',
+                'certified refurbished', 'renewed', 'open box',
+                'elitebook', 'probook', 'latitude', 'precision', 'xps',
+                'spectre', 'envy', 'swift', 'spin', 'chromebook plus',
+                'gram', 'yoga', 'flex', 'ideapad', 'ideacentre',
+                'galaxy book', 'pixelbook', 'matebook',
+                // Desktops (sub-categories)
+                'all-in-one', 'aio', 'mini pc', 'small form factor', 'sff',
+                'tower', 'mid tower', 'full tower', 'micro atx', 'mini itx', 'atx',
+                'gaming desktop', 'prebuilt', 'pre-built', 'custom build', 'barebones',
+                'nuc', 'mac mini', 'mac studio', 'mac pro',
+                'optiplex', 'prodesk', 'elitedesk', 'thinkcentre',
+                'trident', 'infinite', 'aegis', 'aurora',
+                // Monitors (sub-categories from Best Buy / Amazon)
+                'ultrawide', 'super ultrawide', 'curved monitor', 'flat monitor',
+                'portable monitor', 'touchscreen monitor', 'usb-c monitor',
+                'gaming monitor', 'professional monitor', 'color accurate',
+                'monitor 24', 'monitor 27', 'monitor 32', 'monitor 34', 'monitor 49',
+                '240hz', '144hz', '165hz', '360hz', '120hz', '60hz', '75hz', '100hz',
+                '5k', '8k', '1080p monitor', '1440p monitor', '4k monitor',
+                'wqhd', 'uwqhd', 'fhd', 'qhd', 'uhd',
+                'dell ultrasharp', 'lg ultragear', 'lg ultrafine', 'samsung odyssey',
+                'asus proart', 'benq zowie', 'benq pd', 'mobiuz',
+                'aoc', 'pixio', 'innocn', 'sceptre', 'viotek', 'koorui', 'dough',
+                // Keyboards (sub-categories from Amazon / Best Buy / Newegg)
+                'mechanical keyboard', 'membrane keyboard', 'wireless keyboard',
+                'bluetooth keyboard', 'gaming keyboard', 'ergonomic keyboard',
+                'split keyboard', 'compact keyboard', '60%', '65%', '75%', 'tkl', 'tenkeyless',
+                'full size keyboard', 'numpad', 'keypad', 'macro pad',
+                'hot swap', 'hot-swappable', 'cherry mx', 'gateron', 'kailh',
+                'linear switch', 'tactile switch', 'clicky switch',
+                'keycap', 'keycaps', 'pbt', 'abs keycap', 'doubleshot',
+                'ducky', 'keychron', 'akko', 'royal kludge', 'redragon',
+                'anne pro', 'wooting', 'nuphy', 'iqunix', 'varmilo', 'leopold',
+                'tofu', 'gmmk', 'kbd', 'custom keyboard',
+                // Mice (sub-categories)
+                'gaming mouse', 'wireless mouse', 'ergonomic mouse', 'vertical mouse',
+                'trackball', 'trackpad', 'touchpad', 'bluetooth mouse',
+                'lightweight mouse', 'mmo mouse', 'fps mouse',
+                'dpi', 'polling rate', 'sensor', 'optical', 'laser',
+                'glorious', 'finalmouse', 'pulsar', 'lamzu', 'vaxee', 'zowie',
+                'deathadder', 'viper', 'basilisk', 'orochi', 'superlight',
+                'g pro', 'g502', 'g305', 'mx master', 'mx anywhere',
+                // Storage & memory (deeper from Newegg / PCPartPicker)
+                'external ssd', 'portable ssd', 'internal ssd', 'internal hdd',
+                'nas drive', 'surveillance drive', 'enterprise drive',
+                'samsung evo', 'samsung pro', 'wd black', 'wd blue', 'wd red',
+                'firecuda', 'barracuda', 'ironwolf', 'skyhawk',
+                'sabrent', 'silicon power', 'teamgroup', 'adata', 'transcend',
+                'mushkin', 'patriot', 'pny', 'lexar', 'verbatim',
+                'memory card', 'micro sd', 'microsd', 'sdxc', 'sdhc', 'cfast', 'cfexpress',
+                'usb stick', 'pen drive',
+                'ddr3', 'ddr4 ram', 'ddr5 ram', 'ecc', 'registered', 'unbuffered',
+                'ram speed', 'ram latency', 'cl16', 'cl18', 'cl30', 'cl36', 'xmp', 'expo',
+                'g.skill', 'trident z', 'ripjaws', 'vengeance', 'fury', 'dominator',
+                'corsair vengeance', 'kingston fury',
+                // GPUs (deeper from Newegg / Amazon / PCPartPicker)
+                'rtx 5090', 'rtx 5080', 'rtx 5070', 'rtx 5060',
+                'rtx 4090', 'rtx 4080', 'rtx 4070', 'rtx 4060',
+                'rtx 3090', 'rtx 3080', 'rtx 3070', 'rtx 3060',
+                'rx 9070', 'rx 7900', 'rx 7800', 'rx 7700', 'rx 7600',
+                'rx 6800', 'rx 6700', 'rx 6600',
+                'arc b580', 'arc a770', 'arc a750',
+                'founders edition', 'reference card', 'aftermarket',
+                'triple fan', 'dual fan', 'blower', 'aio cooled',
+                'sapphire', 'xfx', 'powercolor', 'asus strix', 'tuf gaming',
+                'msi suprim', 'msi ventus', 'gaming x trio', 'gaming oc',
+                'windforce', 'eagle', 'aorus',
+                'palit', 'gainward', 'inno3d', 'pny gpu', 'galax',
+                // CPUs (deeper from Newegg / PCPartPicker)
+                'core i3', 'core i5', 'core i7', 'core i9', 'core ultra',
+                'ryzen 3', 'ryzen 5', 'ryzen 7', 'ryzen 9', 'threadripper',
+                'xeon', 'epyc',
+                'arrow lake', 'raptor lake', 'alder lake', 'meteor lake', 'lunar lake',
+                'zen 5', 'zen 4', 'zen 3', 'granite ridge', 'phoenix', 'hawk point',
+                'socket', 'am5', 'am4', 'lga 1851', 'lga 1700', 'lga 1200',
+                'multi-core', 'single-core', 'thread', 'core count', 'boost clock', 'base clock',
+                'tdp', 'wattage', 'integrated graphics', 'igpu', 'apu',
+                // Motherboards (deeper from Newegg / PCPartPicker)
+                'z890', 'z790', 'z690', 'b860', 'b760', 'b650', 'b550', 'b450',
+                'x870', 'x670', 'x570', 'a620', 'a520',
+                'wifi motherboard', 'itx motherboard', 'matx motherboard', 'eatx',
+                'vrm', 'heatsink', 'chipset', 'bios flashback',
+                'msi mag', 'msi mpg', 'msi meg', 'asus prime', 'asus rog strix',
+                'gigabyte aorus', 'asrock phantom', 'asrock steel legend',
+                // PSU (deeper from Newegg / PCPartPicker)
+                'modular', 'semi-modular', 'non-modular', 'fully modular',
+                '80 plus', '80+ gold', '80+ platinum', '80+ titanium', '80+ bronze',
+                'sfx', 'sfx-l', 'atx 3.0', 'atx psu', '12vhpwr', '12v-2x6',
+                '500w', '550w', '650w', '750w', '850w', '1000w', '1200w', '1600w',
+                'rm850', 'rm1000', 'hx1000', 'focus', 'leadex', 'revolt',
+                'prime ultra', 'straight power', 'dark power', 'ion',
+                // Cases (deeper from Newegg / PCPartPicker)
+                'pc case', 'computer case', 'tower case',
+                'tempered glass', 'mesh front', 'airflow case', 'silent case',
+                'compact case', 'cube case', 'open frame',
+                'fractal design', 'meshify', 'north', 'torrent', 'pop',
+                'lian li', 'lancool', 'o11 dynamic', 'dan case',
+                'phanteks', 'evolv', 'eclipse',
+                'h7', 'h510', 'h710',
+                '4000d', '5000d', '5000t', '7000d',
+                'haf', 'masterbox', 'mastercase', 'nr200',
+                'define', 'meshroom', 'antec',
+                // Cooling (deeper from Newegg / PCPartPicker)
+                'air cooler', 'tower cooler', 'aio cooler', 'liquid cooler',
+                'water cooling', 'custom loop', 'radiator', 'reservoir', 'pump',
+                'cpu cooler', 'gpu cooler', 'case fan',
+                '120mm', '140mm', '240mm', '280mm', '360mm', '420mm',
+                'static pressure', 'airflow fan', 'pwm', 'argb fan', 'daisy chain',
+                'noctua', 'nh-d15', 'nh-u12s', 'chromax',
+                'arctic', 'liquid freezer', 'freezer 34',
+                'deepcool', 'ak620', 'ls720', 'assassin',
+                'ek', 'ekwb', 'alphacool', 'corsair h150', 'kraken',
+                'id-cooling', 'thermalright', 'peerless assassin', 'frost spirit',
+
+                // ── B&H Photo / Adorama categories ──
+                // Photography & videography
+                'dslr', 'mirrorless', 'point and shoot', 'action camera',
+                'gopro', 'dji', 'insta360', 'fujifilm', 'nikon', 'panasonic',
+                'olympus', 'sigma', 'tamron', 'tokina', 'samyang', 'rokinon',
+                'camera lens', 'zoom lens', 'prime lens', 'wide angle', 'telephoto',
+                'fisheye', 'macro lens', 'portrait lens',
+                'full frame', 'aps-c', 'micro four thirds', 'crop sensor',
+                'megapixel', 'image stabilization', 'autofocus', 'viewfinder',
+                'tripod', 'monopod', 'gimbal', 'stabilizer', 'slider',
+                'camera bag', 'camera strap', 'lens filter', 'nd filter', 'uv filter',
+                'polarizer', 'lens cap', 'lens hood',
+                'memory card for camera', 'battery grip',
+                // Video production
+                'camcorder', 'cinema camera', 'blackmagic', 'bmpcc',
+                'video light', 'ring light', 'softbox', 'led panel',
+                'green screen', 'chroma key', 'backdrop',
+                'video switcher', 'video mixer', 'hdmi splitter',
+                'video encoder', 'video recorder', 'field monitor',
+                'lavalier', 'lav mic', 'shotgun mic', 'boom mic',
+                'rode', 'shure', 'sennheiser', 'audio-technica', 'blue yeti',
+                'elgato', 'blackmagic design', 'atomos',
+                // Drones
+                'drone', 'quadcopter', 'fpv drone', 'racing drone',
+                'dji mini', 'dji air', 'dji mavic', 'dji avata', 'dji inspire',
+                'autel', 'parrot', 'skydio', 'betafpv',
+                'drone battery', 'propeller', 'drone bag', 'drone controller',
+
+                // ── TechRadar / Tom's Hardware / CNET / The Verge categories ──
+                // Emerging tech & AI hardware
+                'ai pc', 'copilot pc', 'snapdragon x', 'snapdragon x elite', 'snapdragon x plus',
+                'apple m1', 'apple m2', 'apple m3', 'apple m4', 'm1 pro', 'm1 max', 'm1 ultra',
+                'm2 pro', 'm2 max', 'm2 ultra', 'm3 pro', 'm3 max', 'm4 pro', 'm4 max',
+                'neural engine', 'machine learning', 'on-device ai',
+                'arm processor', 'arm chip', 'risc-v', 'qualcomm', 'mediatek',
+                // Displays & TV tech (Best Buy / Amazon)
+                'smart tv', 'led tv', 'oled tv', 'qled tv', 'neo qled',
+                'mini led tv', 'micro led tv', '8k tv', '4k tv',
+                'tv', 'television', 'roku', 'fire tv', 'chromecast', 'apple tv',
+                'streaming device', 'streaming stick', 'set top box',
+                'lg c4', 'lg g4', 'samsung s95', 'sony bravia', 'hisense', 'tcl',
+                'vizio', 'toshiba tv', 'insignia',
+                'universal remote', 'tv mount', 'wall mount', 'tv stand',
+                'hdmi arc', 'earc', 'hdmi 2.1', 'hdmi 2.0', 'dolby atmos', 'dolby vision',
+                'dtsx', 'dts',
+                // Home audio (Best Buy / Amazon)
+                'home theater', 'surround sound', '5.1', '7.1', '2.1', 'atmos speaker',
+                'receiver', 'av receiver', 'stereo receiver', 'preamp', 'preamplifier',
+                'bookshelf speaker', 'floor standing', 'tower speaker', 'center channel',
+                'powered speaker', 'passive speaker', 'active speaker',
+                'turntable', 'vinyl', 'record player', 'phono',
+                'bose', 'sonos', 'jbl', 'harman kardon', 'marshall', 'bang olufsen',
+                'klipsch', 'polk', 'yamaha', 'denon', 'marantz', 'onkyo',
+                'kef', 'elac', 'svs', 'audioengine', 'edifier', 'creative',
+                // E-readers & tablets (Amazon / Best Buy)
+                'kindle', 'e-reader', 'e-ink', 'kobo', 'remarkable',
+                'ipad pro', 'ipad air', 'ipad mini', 'galaxy tab', 'fire tablet',
+                'android tablet', 'windows tablet', 'drawing display',
+                'apple pencil', 'samsung s pen', 'tablet keyboard', 'tablet case',
+                // Wearables & health tech (Best Buy / Amazon)
+                'fitness band', 'heart rate monitor', 'blood pressure monitor',
+                'pulse oximeter', 'smart ring', 'oura ring', 'whoop',
+                'gps watch', 'running watch', 'cycling computer',
+                'galaxy buds', 'pixel buds', 'beats', 'jabra', 'jaybird',
+                'bone conduction', 'open ear', 'true wireless', 'tws',
+                // Car tech & accessories (Best Buy / Amazon)
+                'dash cam', 'dashcam', 'car camera', 'backup camera', 'gps navigator',
+                'car charger', 'car mount', 'phone mount', 'car adapter',
+                'obd2', 'obd scanner', 'car diagnostic', 'tire inflator',
+                'car stereo', 'car speaker', 'head unit', 'car amplifier',
+                'radar detector', 'cb radio', 'walkie talkie', 'two-way radio',
+                // Power & energy (Amazon / Best Buy)
+                'solar panel', 'solar charger', 'portable power station',
+                'generator', 'inverter', 'ecoflow', 'jackery', 'bluetti', 'anker solix',
+                'wall charger', 'fast charger', 'gan charger', 'multi-port charger',
+                'wireless charger', 'charging pad', 'charging stand', 'charging cable',
+                'usb-c cable', 'lightning cable', 'micro usb cable', 'braided cable',
+                'anker', 'baseus', 'ugreen', 'belkin', 'satechi', 'twelve south',
+                'spigen', 'otterbox', 'phone case', 'tablet case',
+                // Gaming (Best Buy / Amazon / Newegg)
+                'gaming chair', 'gaming desk', 'gaming headset', 'gaming monitor',
+                'gaming keyboard', 'gaming mouse', 'gaming mousepad',
+                'playstation', 'ps5', 'ps4', 'xbox', 'xbox series x', 'xbox series s',
+                'nintendo', 'switch', 'steam deck', 'rog ally', 'legion go',
+                'handheld gaming', 'portable gaming', 'handheld pc',
+                'console', 'controller', 'dualsense', 'pro controller',
+                'gaming headphones', 'rgb lighting', 'led gaming',
+                'graphics setting', 'frame rate', 'high refresh',
+                'esports', 'competitive gaming', 'tournament',
+                'elgato stream', 'obs', 'stream setup',
+                // Cables & connectors (Amazon / Newegg)
+                'optical cable', 'toslink', 'rca cable', 'xlr cable', 'trs cable',
+                'coaxial', 'vga cable', 'dvi cable', 'mini displayport',
+                'extension cable', 'power cable', 'iec cable', 'nema',
+                'sata cable', 'molex', 'psu cable', 'sleeved cable', 'cable mod',
+                'kvm cable', 'serial cable', 'parallel cable',
+                // Server & enterprise (Newegg / Amazon)
+                'rack server', 'tower server', 'blade server', 'rack mount',
+                'server rack', 'server case', 'server psu', 'redundant power',
+                'server ram', 'ecc memory', 'server cpu', 'server motherboard',
+                'raid controller', 'hba', 'network card', 'nic',
+                'sfp', 'sfp+', 'qsfp', '10gbe', '2.5gbe', '10 gigabit',
+                'managed switch', 'unmanaged switch', 'poe switch',
+                'rack shelf', 'rack rail', 'cable tray', 'patch panel',
+                // Software & OS (Best Buy / Amazon)
+                'windows 11', 'windows 10', 'windows license', 'product key',
+                'office 365', 'microsoft 365', 'adobe', 'photoshop', 'lightroom',
+                'premiere pro', 'after effects', 'creative cloud', 'final cut',
+                'logic pro', 'davinci resolve',
+                'vpn software', 'password manager', 'parental control',
+                'norton', 'mcafee', 'kaspersky', 'bitdefender', 'malwarebytes',
+                'os license', 'ubuntu', 'fedora', 'debian', 'arch linux', 'mint',
+                // 3D printing & maker (Amazon / Newegg)
+                'resin printer', 'fdm printer', 'sla printer', 'msla',
+                'creality', 'ender 3', 'ender 5', 'prusa', 'bambu lab', 'anycubic',
+                'elegoo', 'flashforge', 'voron', 'klipper',
+                'nozzle', 'hotend', 'extruder', 'build plate', 'print bed',
+                'petg', 'tpu', 'nylon filament', 'resin', 'wash and cure',
+                'cnc', 'laser engraver', 'laser cutter', 'soldering iron',
+                'soldering station', 'multimeter', 'oscilloscope',
+                'raspberry pi', 'arduino', 'esp32', 'microcontroller',
+                'breadboard', 'led kit', 'sensor kit', 'robotics',
+                // AliExpress / global brands
+                'baseus', 'orico', 'vention', 'unitek', 'jsaux',
+                'kemove', 'womier', 'epomaker', 'feker', 'yunzii',
+                'topping', 'fiio', 'moondrop', 'kz', 'cca', 'tin hifi',
+                'tripowin', 'truthear', '7hz', 'simgot', 'tangzu',
+                'beelink', 'minisforum', 'geekom', 'acemagic', 'trigkey',
+                'chuwi', 'teclast', 'alldocube', 'doogee', 'blackview', 'ulefone',
+                'umidigi', 'poco', 'redmi', 'zte', 'honor', 'tecno', 'infinix',
+                'amazfit', 'ticwatch', 'mobvoi', 'haylou', 'qcy',
+                'dreame', 'roborock', 'ecovacs', 'robot vacuum', 'vacuum cleaner',
+                'air purifier', 'humidifier', 'dehumidifier', 'space heater',
+                'portable ac', 'portable fan', 'tower fan', 'desk fan',
+
+                // ── PCPartPicker / custom build terms ──
+                'part list', 'compatibility', 'bottleneck', 'build guide',
+                'budget build', 'mid range', 'high end', 'enthusiast', 'entry level',
+                'price drop', 'price history', 'price alert', 'price match',
+                'in stock', 'out of stock', 'backorder', 'pre-order', 'preorder',
+                'new arrival', 'best seller', 'top rated', 'editor choice',
+                'unboxing', 'teardown', 'disassembly', 'repair', 'replacement part',
+                'diagnostic', 'troubleshoot', 'blue screen', 'bsod', 'crash', 'freeze',
+                'slow computer', 'speed up', 'optimize', 'clean install', 'fresh install',
+                'dual boot', 'partition', 'format', 'clone', 'disk image', 'recovery',
+                'data recovery', 'file transfer', 'migration',
+
+                // Store-specific
+                'menu', 'page', 'website', 'site', 'navigation', 'contact', 'about',
+                'support', 'help', 'faq', 'policy', 'terms',
+                // Greetings (allow polite openers)
+                'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
+                'thanks', 'thank you', 'bye', 'goodbye',
+            );
+
+            // Check if message contains any allowed keyword
+            $is_on_topic = false;
+            foreach ( $allow_keywords as $kw ) {
+                if ( strpos( $msg_clean, $kw ) !== false ) {
+                    $is_on_topic = true;
+                    break;
+                }
+            }
+
+            // ── BLOCK LIST: obviously off-topic patterns ──
+            $block_patterns = array(
+                // Coding / programming
+                '/\b(write|create|make|build|code|program|script|debug|fix)\s+(me\s+)?(a\s+)?(code|function|class|script|program|app|html|css|javascript|python|php|java|sql|api)\b/i',
+                '/\b(coding|programming|developer|compiler|syntax|algorithm|variable|loop|array|database|query)\b/i',
+                '/\b(react|angular|vue|node\.?js|django|flask|laravel|express|typescript)\b/i',
+                // Math / science
+                '/\b(solve|calculate|equation|formula|integral|derivative|calculus|algebra|geometry|trigonometry|theorem)\b/i',
+                '/\b(physics|chemistry|biology|molecule|atom|cell|dna|evolution|gravity|quantum)\b/i',
+                '/\bwhat\s+is\s+\d+\s*[\+\-\*\/x×÷]\s*\d+/i',
+                // History / geography / politics
+                '/\b(history|historical|ancient|medieval|world war|civil war|revolution|empire|dynasty|century)\b/i',
+                '/\b(geography|continent|capital of|president|prime minister|government|election|politics|political|democracy)\b/i',
+                '/\b(country|countries|population|language|religion|culture)\b/i',
+                // Entertainment / media
+                '/\b(movie|film|song|music|lyrics|singer|actor|actress|celebrity|netflix|spotify|youtube|tiktok|instagram)\b/i',
+                '/\b(recipe|cook|cooking|baking|ingredient|food|restaurant|diet|nutrition|calories)\b/i',
+                '/\b(joke|funny|riddle|story|poem|poetry|novel|fiction|book|author|write me)\b/i',
+                '/\b(sport|football|soccer|basketball|baseball|tennis|cricket|olympics|team|score|player)\b/i',
+                '/\b(game(?!r|ing)|video game|play|puzzle|chess|trivia|quiz)\b/i',
+                // Personal / life advice
+                '/\b(relationship|dating|love|marriage|divorce|boyfriend|girlfriend|crush)\b/i',
+                '/\b(medical|health|symptom|disease|medicine|doctor|hospital|diagnos|treatment|therapy|mental health)\b/i',
+                '/\b(legal|lawyer|attorney|lawsuit|court|law|rights|sue)\b/i',
+                '/\b(finance|invest|stock|crypto|bitcoin|forex|trading|mortgage|loan|insurance|tax|retirement)\b/i',
+                '/\b(horoscope|zodiac|astrology|fortune|tarot|dream meaning|spiritual)\b/i',
+                // Travel
+                '/\b(travel|vacation|holiday|flight|hotel|airbnb|tourist|visa|passport|itinerary)\b/i',
+                // Education
+                '/\b(homework|assignment|essay|thesis|exam|test|study|university|college|school|teacher|student|class)\b/i',
+                '/\b(translate|translation|meaning of|define|definition|synonym|antonym)\b/i',
+                // Weather / news
+                '/\b(weather|forecast|temperature|rain|snow|sunny|climate)\b/i',
+                '/\b(news|headline|breaking|current events|what happened)\b/i',
+                // AI / philosophy
+                '/\b(who are you|what are you|are you ai|are you human|meaning of life|consciousness|philosophy|ethical|moral)\b/i',
+                '/\b(chatgpt|openai|gemini|bard|copilot|midjourney|dall-?e|stable diffusion)\b/i',
+            );
+
+            // If no allowed keyword found, or if a block pattern matches → reject
+            if ( ! $is_on_topic ) {
+                $is_blocked = true;
+            } else {
+                // Even if an allow keyword matched, check block patterns for dominant off-topic intent
+                $is_blocked = false;
+                foreach ( $block_patterns as $pattern ) {
+                    if ( preg_match( $pattern, $msg_clean ) ) {
+                        $is_blocked = true;
+                        break;
+                    }
+                }
+            }
+
+            if ( $is_blocked ) {
+                $bot_name = get_option( 'shopys_ai_bot_name', 'Shopping Assistant' );
+                $decline_messages = array(
+                    "I'm **{$bot_name}**, your dedicated product assistant! I'm here to help you find the perfect tech products, compare specs, check prices, and explore our catalog. What are you looking for today?",
+                    "That's outside my area of expertise! I specialize in **product recommendations, price comparisons, and helping you find the right tech**. Ask me about laptops, GPUs, peripherals, or anything in our store!",
+                    "I appreciate the question, but I'm built specifically to help with **shopping and product advice**! Whether you need a new laptop, want to compare monitors, or need help choosing components — I'm your go-to assistant.",
+                );
+                $random_msg = $decline_messages[ array_rand( $decline_messages ) ];
+                wp_send_json_success( array(
+                    'message'  => $random_msg,
+                    'products' => array(),
+                ) );
+            }
+        }
+    }
+    // ── End Product-Only Pre-Filter ──────────────────────────────────
+
     $catalog    = shopys_ai_get_catalog();
     $store_name = get_bloginfo( 'name' );
     $store_url  = home_url();
@@ -732,6 +1257,13 @@ function shopys_ai_chat_handler() {
             }
         }
     }
+
+    // Feature toggle checks
+    $is_product_only    = get_option( 'shopys_ai_product_only', '1' ) === '1';
+    $is_image_search    = get_option( 'shopys_ai_image_search', '1' ) === '1';
+    $is_pdf_reading     = get_option( 'shopys_ai_pdf_reading', '1' ) === '1';
+    $is_link_comparison = get_option( 'shopys_ai_link_comparison', '1' ) === '1';
+    $is_attachments     = get_option( 'shopys_ai_attachments', '1' ) === '1';
 
     $system_prompt = "You are {$bot_name}, the AI shopping assistant for **{$store_name}**.
 
@@ -838,6 +1370,51 @@ You have access to:
 - Promotion and deal detection
 - Page layout and structure analysis
 </capabilities>";
+
+    // Product-only mode restriction
+    if ( $is_product_only ) {
+        $system_prompt .= "
+
+<scope_restriction>
+IMPORTANT: You are STRICTLY a product/store assistant. You must ONLY respond to questions related to:
+- Product recommendations, search, and catalog browsing
+- Product comparisons (including with outside links when allowed)
+- Product features, specifications, pricing, and availability
+- Store information (shipping, returns, policies, categories)
+- Image-based product matching (when enabled)
+- PDF product documents (when enabled)
+
+For ANY question that is NOT related to products, shopping, or this store, politely decline and redirect:
+\"I'm here to help you with product recommendations and shopping! 😊 Feel free to ask about products, compare items, or search our catalog. How can I help you find what you're looking for?\"
+
+DO NOT answer questions about: general knowledge, coding, math, history, science, entertainment, personal advice, or any topic unrelated to shopping and products.
+</scope_restriction>";
+    }
+
+    // Conditional capability instructions
+    if ( ! $is_image_search ) {
+        $system_prompt .= "
+
+<disabled_feature>
+Image product search is currently DISABLED. If a user uploads an image asking to find matching products, let them know this feature is not available right now.
+</disabled_feature>";
+    }
+
+    if ( ! $is_pdf_reading ) {
+        $system_prompt .= "
+
+<disabled_feature>
+PDF reading and summarization is currently DISABLED. If a user uploads a PDF, let them know this feature is not available right now.
+</disabled_feature>";
+    }
+
+    if ( ! $is_link_comparison ) {
+        $system_prompt .= "
+
+<disabled_feature>
+Outside link comparison is currently DISABLED. If a user pastes product URLs from other websites to compare, let them know this feature is not available right now.
+</disabled_feature>";
+    }
 
 
     // Build message history
@@ -1011,6 +1588,24 @@ You have access to:
     }
 
     // If comparison request, try to fetch multiple URLs if provided
+    // Block outside link comparison if feature is disabled
+    if ( ! $is_link_comparison && $is_comparison_request ) {
+        // Check if message contains external URLs
+        $has_external_url = false;
+        if ( preg_match_all( '/(https?:\/\/[^\s]+|www\.[^\s]+)/i', $message, $ext_matches ) ) {
+            foreach ( $ext_matches[1] as $ext_url ) {
+                $full_url = strpos( $ext_url, 'http' ) !== 0 ? 'https://' . $ext_url : $ext_url;
+                if ( strpos( $full_url, $store_url ) !== 0 ) {
+                    $has_external_url = true;
+                    break;
+                }
+            }
+        }
+        if ( $has_external_url ) {
+            $is_comparison_request = false; // Disable external comparison
+        }
+    }
+
     if ( $is_comparison_request ) {
         // Extract ALL URLs from the message (not just first one)
         $all_url_matches = array();
@@ -1023,7 +1618,7 @@ You have access to:
                 $all_url_matches[] = $http_url;
             }
         }
-        
+
         if ( ! empty( $all_url_matches ) ) {
             $should_fetch_website = true;
             $urls_to_fetch = array_slice( array_unique( $all_url_matches ), 0, 5 ); // Fetch up to 5 URLs for comparison
@@ -1178,6 +1773,28 @@ You have access to:
         }
     } else {
         $messages[] = array( 'role' => 'user', 'content' => $message );
+    }
+
+    // Block attachments if feature is disabled
+    if ( ! $is_attachments && ! empty( $file_attachments ) ) {
+        $file_attachments = array();
+    }
+
+    // Block PDF attachments if PDF reading is disabled
+    if ( ! $is_pdf_reading && ! empty( $file_attachments ) ) {
+        $file_attachments = array_filter( $file_attachments, function( $att ) {
+            return ! isset( $att['type'] ) || $att['type'] !== 'application/pdf';
+        } );
+        $file_attachments = array_values( $file_attachments );
+    }
+
+    // Block image attachments if image search is disabled
+    if ( ! $is_image_search && ! empty( $file_attachments ) ) {
+        $allowed_image_types_check = array( 'image/jpeg', 'image/png', 'image/gif', 'image/webp' );
+        $file_attachments = array_filter( $file_attachments, function( $att ) use ( $allowed_image_types_check ) {
+            return ! isset( $att['type'] ) || ! in_array( $att['type'], $allowed_image_types_check, true );
+        } );
+        $file_attachments = array_values( $file_attachments );
     }
 
     // Inject image/PDF attachments into the last user message
@@ -1377,11 +1994,15 @@ function shopys_ai_chatbot_assets() {
     $welcome_msg = get_option( 'shopys_ai_welcome_msg', "Hi! I'm your shopping assistant.\nAsk me anything — I can recommend products based on your needs!" );
 
     wp_localize_script( 'shopys-ai-chatbot-js', 'shopysAI', array(
-        'ajax_url'    => admin_url( 'admin-ajax.php' ),
-        'nonce'       => wp_create_nonce( 'shopys_ai_nonce' ),
-        'bot_name'    => $bot_name,
-        'welcome_msg' => $welcome_msg,
-        'store_name'  => get_bloginfo( 'name' ),
+        'ajax_url'        => admin_url( 'admin-ajax.php' ),
+        'nonce'           => wp_create_nonce( 'shopys_ai_nonce' ),
+        'bot_name'        => $bot_name,
+        'welcome_msg'     => $welcome_msg,
+        'store_name'      => get_bloginfo( 'name' ),
+        'feat_image_search'    => get_option( 'shopys_ai_image_search', '1' ),
+        'feat_pdf_reading'     => get_option( 'shopys_ai_pdf_reading', '1' ),
+        'feat_link_comparison' => get_option( 'shopys_ai_link_comparison', '1' ),
+        'feat_attachments'     => get_option( 'shopys_ai_attachments', '1' ),
     ) );
 }
 

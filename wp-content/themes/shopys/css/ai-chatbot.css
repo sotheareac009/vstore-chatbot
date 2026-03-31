@@ -951,6 +951,16 @@
         height: 54px;
     }
 
+    /* Hide floating toggle when chat is open — header X button is sufficient */
+    .sai-toggle.sai-active {
+        display: none;
+    }
+
+    /* Ensure chatbot is always on top of everything on mobile */
+    .sai-window {
+        z-index: 2147483647;
+    }
+
     .sai-products-grid {
         grid-template-columns: repeat(2, 1fr);
     }
