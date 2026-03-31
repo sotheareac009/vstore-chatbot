@@ -60,7 +60,10 @@
         }
 
         var fd = new FormData();
-        fd.append('action', 'ppg_ajax_paginate');
+        var ajaxAction = 'ppg_ajax_paginate';
+        if (d.shortcode === 'featured_products') ajaxAction = 'fpg_ajax_paginate';
+        if (d.shortcode === 'latest_products')   ajaxAction = 'lpg_ajax_paginate';
+        fd.append('action', ajaxAction);
         fd.append('nonce', ppgParams.nonce);
         fd.append('page', page);
         fd.append('limit', d.limit || 12);

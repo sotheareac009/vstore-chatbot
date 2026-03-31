@@ -230,6 +230,8 @@ add_action('customize_controls_print_styles','shopys_store_style',100 );
 /**********************/
 if ( class_exists( 'WooCommerce' ) ) {
     require_once get_stylesheet_directory() . '/template-parts/product-grid.php';
+    require_once get_stylesheet_directory() . '/template-parts/featured-product-grid.php';
+    require_once get_stylesheet_directory() . '/template-parts/latest-product-grid.php';
     require_once get_stylesheet_directory() . '/template-parts/marvo-product-grid.php';
     require_once get_stylesheet_directory() . '/template-parts/product-by-category.php';
     require_once get_stylesheet_directory() . '/template-parts/cart-summary.php';
@@ -241,6 +243,9 @@ require_once get_stylesheet_directory() . '/inc/telegram-login.php';
 
 // AI Chatbot — always loads so the Settings page is always available
 require_once get_stylesheet_directory() . '/inc/ai-chatbot.php';
+
+// Shortcode Guide — admin sidebar reference page
+require_once get_stylesheet_directory() . '/inc/shortcode-guide.php';
 
 // ── Fixed $2 shipping — no zone setup required ────────────────────────────────
 add_filter( 'woocommerce_package_rates', 'shopys_force_flat_2_shipping', 99, 2 );

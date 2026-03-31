@@ -48,8 +48,10 @@
 
         headerName.textContent = cfg.bot_name;
 
-        // Restore Telegram session from localStorage
-        if (cfg.require_tg_login !== '0') {
+        // Restore Telegram session (skip login gate when free chat is on)
+        if (cfg.free_chat !== '0' && cfg.free_chat !== undefined) {
+            // Free chat mode — no login required
+        } else if (cfg.require_tg_login !== '0') {
             var saved = localStorage.getItem('sai_tg_session');
             if (saved) {
                 try { tgSession = JSON.parse(saved); } catch (e) { tgSession = null; }
@@ -349,8 +351,8 @@
         chatWindow.classList.toggle('sai-open', isOpen);
 
         if (isOpen && messagesEl.children.length === 0) {
-            // If Telegram login required and not logged in, don't show welcome
-            if (cfg.require_tg_login !== '0' && !tgSession) {
+            // If Telegram login required and not logged in, don't show welcome (skip in free chat mode)
+            if (cfg.free_chat === '0' && cfg.require_tg_login !== '0' && !tgSession) {
                 // Gate will be shown by initTelegramGate
             } else {
                 showWelcome();
@@ -405,8 +407,8 @@
         formData.append('model', modelSelect ? modelSelect.value : 'claude-opus-4-6');
         formData.append('page_url', window.location.href);
 
-        // Attach Telegram session if required
-        if (cfg.require_tg_login !== '0' && tgSession) {
+        // Attach Telegram session if required (not needed in free chat mode)
+        if (cfg.free_chat === '0' && cfg.require_tg_login !== '0' && tgSession) {
             formData.append('tg_id', tgSession.telegram_id);
             formData.append('tg_auth_date', tgSession.auth_date);
             formData.append('tg_session', tgSession.session);

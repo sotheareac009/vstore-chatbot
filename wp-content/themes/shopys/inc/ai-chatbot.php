@@ -236,6 +236,9 @@ function shopys_ai_register_settings() {
 
     // Header login button visibility
     register_setting( 'shopys_ai_settings', 'shopys_ai_show_header_login', 'sanitize_text_field' );
+
+    // Free chat (no login required)
+    register_setting( 'shopys_ai_settings', 'shopys_ai_free_chat', 'sanitize_text_field' );
 }
 
 function shopys_ai_settings_page() {
@@ -252,6 +255,7 @@ function shopys_ai_settings_page() {
     $attachments_on  = get_option( 'shopys_ai_attachments', '1' );
     $require_tg      = get_option( 'shopys_ai_require_tg_login', '1' );
     $show_header_login = get_option( 'shopys_ai_show_header_login', '1' );
+    $free_chat         = get_option( 'shopys_ai_free_chat', '0' );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'AI Chatbot Settings', 'shopys' ); ?></h1>
@@ -307,13 +311,23 @@ function shopys_ai_settings_page() {
             <p style="font-size:13px;color:#666;">Enable or disable specific chatbot capabilities.</p>
             <table class="form-table">
                 <tr>
+                    <th scope="row"><?php esc_html_e( 'Free Chat', 'shopys' ); ?></th>
+                    <td>
+                        <select name="shopys_ai_free_chat" id="shopys_ai_free_chat">
+                            <option value="1" <?php selected( $free_chat, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
+                            <option value="0" <?php selected( $free_chat, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
+                        </select>
+                        <p class="description">When On, anyone can chat without logging in. The chatbot is open to all website visitors. When Off, Telegram login settings below apply.</p>
+                    </td>
+                </tr>
+                <tr>
                     <th scope="row"><?php esc_html_e( 'Require Telegram Login', 'shopys' ); ?></th>
                     <td>
                         <select name="shopys_ai_require_tg_login" id="shopys_ai_require_tg_login">
                             <option value="1" <?php selected( $require_tg, '1' ); ?>><?php esc_html_e( 'On', 'shopys' ); ?></option>
                             <option value="0" <?php selected( $require_tg, '0' ); ?>><?php esc_html_e( 'Off', 'shopys' ); ?></option>
                         </select>
-                        <p class="description">Users must login with Telegram before chatting. All Telegram users are logged in the database.</p>
+                        <p class="description">Users must login with Telegram before chatting. Ignored when Free Chat is On.</p>
                     </td>
                 </tr>
                 <tr>
@@ -1016,9 +1030,10 @@ function shopys_ai_chat_handler() {
     check_ajax_referer( 'shopys_ai_nonce', 'nonce' );
 
     $tg_id = 0; // Track Telegram user for cost logging
+    $is_free_chat = get_option( 'shopys_ai_free_chat', '0' ) !== '0';
 
-    // Enforce Telegram login if required
-    if ( get_option( 'shopys_ai_require_tg_login', '1' ) !== '0' ) {
+    // Enforce Telegram login if required (skip when free chat is on)
+    if ( ! $is_free_chat && get_option( 'shopys_ai_require_tg_login', '1' ) !== '0' ) {
         $tg_id       = isset( $_POST['tg_id'] ) ? intval( $_POST['tg_id'] ) : 0;
         $tg_auth     = isset( $_POST['tg_auth_date'] ) ? intval( $_POST['tg_auth_date'] ) : 0;
         $tg_session  = isset( $_POST['tg_session'] ) ? sanitize_text_field( wp_unslash( $_POST['tg_session'] ) ) : '';
@@ -1431,6 +1446,12 @@ function shopys_ai_chat_handler() {
                 // Store-specific
                 'menu', 'page', 'website', 'site', 'navigation', 'contact', 'about',
                 'support', 'help', 'faq', 'policy', 'terms',
+                // Education / study (people shop for products for school/university)
+                'university', 'college', 'school', 'student', 'study', 'studying',
+                'homework', 'assignment', 'exam', 'class', 'course', 'learn', 'learning',
+                'education', 'academic', 'research', 'thesis', 'lecture', 'major',
+                'engineering', 'science', 'design', 'architecture', 'medical',
+                'work', 'office', 'business', 'professional', 'freelance', 'remote',
                 // Greetings (allow polite openers)
                 'hi', 'hello', 'hey', 'good morning', 'good afternoon', 'good evening',
                 'thanks', 'thank you', 'bye', 'goodbye',
@@ -1484,11 +1505,9 @@ function shopys_ai_chat_handler() {
                 '/\b(chatgpt|openai|gemini|bard|copilot|midjourney|dall-?e|stable diffusion)\b/i',
             );
 
-            // If no allowed keyword found, or if a block pattern matches → reject
+            // If no allowed keyword found → check block patterns to reject
             if ( ! $is_on_topic ) {
-                $is_blocked = true;
-            } else {
-                // Even if an allow keyword matched, check block patterns for dominant off-topic intent
+                // No product keyword found — check if it's clearly off-topic
                 $is_blocked = false;
                 foreach ( $block_patterns as $pattern ) {
                     if ( preg_match( $pattern, $msg_clean ) ) {
@@ -1496,6 +1515,13 @@ function shopys_ai_chat_handler() {
                         break;
                     }
                 }
+                // If no block pattern matched either, still block (no product relevance detected)
+                if ( ! $is_blocked && strlen( $msg_clean ) > 10 ) {
+                    $is_blocked = true;
+                }
+            } else {
+                // Message contains product/store keywords — allow it through
+                $is_blocked = false;
             }
 
             if ( $is_blocked ) {
@@ -2346,6 +2372,7 @@ function shopys_ai_chatbot_assets() {
         'feat_link_comparison' => get_option( 'shopys_ai_link_comparison', '1' ),
         'feat_attachments'     => get_option( 'shopys_ai_attachments', '1' ),
         'require_tg_login'    => $require_tg,
+        'free_chat'           => get_option( 'shopys_ai_free_chat', '0' ),
         'tg_bot_username'     => $tg_bot,
     ) );
 }
