@@ -2309,7 +2309,7 @@ function shopys_ai_chatbot_widget() {
                         </svg>
                     </div>
                     <h3 class="sai-tg-login-title">Login to Chat</h3>
-                    <p class="sai-tg-login-desc">Please login with your Telegram account to start chatting with our assistant.</p>
+                    <p class="sai-tg-login-desc">Please log in using the “Login” button in the top-right corner with your Telegram account to start chatting with our assistant.</p>
                     <div class="sai-tg-login-widget" id="sai-tg-login-widget"></div>
                 </div>
             </div>
