@@ -255,19 +255,52 @@
         var badge = document.createElement('div');
         badge.className = 'sai-tg-user-badge';
 
-        var imgHtml = '';
+        // Avatar button
+        var avatarHtml = '';
         if (tgSession.photo_url) {
-            imgHtml = '<img src="' + escAttr(tgSession.photo_url) + '" alt="" />';
+            avatarHtml = '<img src="' + escAttr(tgSession.photo_url) + '" alt="" />';
+        } else {
+            var initial = tgSession.first_name ? tgSession.first_name.charAt(0).toUpperCase() : '?';
+            avatarHtml = '<span class="sai-tg-badge-initial">' + initial + '</span>';
         }
 
-        badge.innerHTML = imgHtml +
-            '<span class="sai-tg-badge-name">' + escHtml(tgSession.first_name) + '</span>' +
-            '<button class="sai-tg-logout-btn" title="Logout">Logout</button>';
+        badge.innerHTML =
+            '<button class="sai-tg-badge-btn" type="button" title="Profile">' + avatarHtml + '</button>' +
+            '<div class="sai-tg-badge-dropdown">' +
+                '<div class="sai-tg-badge-profile">' +
+                    '<div class="sai-tg-badge-avatar-lg">' + avatarHtml + '</div>' +
+                    '<div class="sai-tg-badge-info">' +
+                        '<div class="sai-tg-badge-fullname">' + escHtml(tgSession.first_name) + '</div>' +
+                        '<div class="sai-tg-badge-id">ID: ' + escHtml(tgSession.telegram_id) + '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<button class="sai-tg-logout-btn" type="button">' +
+                    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+                    'Logout' +
+                '</button>' +
+            '</div>';
 
         // Insert before the header buttons
         var headerInfo = document.querySelector('.sai-header-info');
         if (headerInfo) headerInfo.parentNode.insertBefore(badge, headerInfo.nextSibling);
 
+        // Toggle dropdown
+        var btn = badge.querySelector('.sai-tg-badge-btn');
+        var dropdown = badge.querySelector('.sai-tg-badge-dropdown');
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            dropdown.classList.toggle('sai-tg-badge-dd--open');
+        });
+
+        // Close dropdown on outside click
+        document.addEventListener('click', function () {
+            dropdown.classList.remove('sai-tg-badge-dd--open');
+        });
+        dropdown.addEventListener('click', function (e) {
+            e.stopPropagation();
+        });
+
+        // Logout
         badge.querySelector('.sai-tg-logout-btn').addEventListener('click', function () {
             tgSession = null;
             localStorage.removeItem('sai_tg_session');
